@@ -4,7 +4,7 @@ A Telegram bot + Telegram Mini App that helps teachers assign work, follow up wi
 
 Design: [docs/DESIGN.md](docs/DESIGN.md) · PRD: [docs/PRD.md](docs/PRD.md) · Decisions: [docs/DECISIONS.md](docs/DECISIONS.md)
 
-> Status: bot linking (students + teacher invites), Mini App sign-in, access control and teacher roster screens. Assignments come next.
+> Status: linking, Mini App sign-in, access control, rosters, and assignments by chat (create / change / cancel with preview + confirm), the outbound queue with quiet hours, the minute tick, and student cards with [Got it]. Student replies, submissions and reminders come next.
 
 ## Prerequisites
 
@@ -47,6 +47,18 @@ npm run webhook:set
 This sets the webhook to `APP_URL/api/telegram` (with the secret, only `message` + `callback_query`, pending updates dropped), the bot's menu button **Open** → `APP_URL/app`, and the `/start` `/help` commands, then prints `getWebhookInfo`. Check that `url` is right and `last_error_message` is absent. Re-run it whenever `APP_URL` or the secret changes.
 
 Prove access control on the deployed app: `npm run demo:unauthorized` (or pass a base URL, e.g. `npm run demo:unauthorized -- http://localhost:3000`).
+
+## Scheduler (tick)
+
+`POST /api/tick` (header `Authorization: Bearer <CRON_SECRET>`) sends due queued messages; reminders and the digest will run here too. Run it by hand with `npm run tick` (or `npm run tick -- http://localhost:3000`).
+
+In production Supabase calls it every minute: open **Supabase → SQL Editor**, paste [scripts/supabase-cron.sql](scripts/supabase-cron.sql), replace `<APP_URL>` and `<CRON_SECRET>`, run. The file also has the queries to check runs and to unschedule.
+
+Set `QUIET_HOURS_ENABLED=false` to test student messages between 21:00 and 07:00 IST.
+
+## LLM evals
+
+`npm run eval` runs [tests/evals/teacher.json](tests/evals/teacher.json) (10 teacher messages, dates relative to a fixed day) against the real model and prints a pass/fail table and accuracy. It costs a fraction of a cent per run and is separate from `npm test`, which never calls the API.
 
 ## Test accounts
 

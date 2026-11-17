@@ -35,6 +35,12 @@ export default function HomePage() {
         </Section>
       )}
 
+      {classes.some((c) => c.subjects.length > 0) && (
+        <Link href="/app/assignments/new" className="mb-5 block rounded-xl bg-tg-button px-4 py-3 text-center font-medium text-tg-button-text">
+          + New assignment
+        </Link>
+      )}
+
       {classes.length > 0 && (
         <Section title="My classes">
           {classes.map((c) => (

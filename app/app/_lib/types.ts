@@ -36,3 +36,47 @@ export type RosterResponse = {
   linked: number;
   total: number;
 };
+
+export type FormOption = { classId: string; className: string; subject: string };
+
+export type AssignmentFormResponse = {
+  options: FormOption[];
+  draft?: {
+    id: string;
+    classId: string;
+    subject: string;
+    title: string;
+    instructions: string;
+    notes: string | null;
+    dueDate: string; // YYYY-MM-DD (IST)
+    dueTime: string; // HH:mm (IST)
+  };
+};
+
+export type CreateAssignmentBody = {
+  draftId?: string;
+  classId: string;
+  subject: string;
+  title: string;
+  instructions: string;
+  notes?: string;
+  dueDate: string;
+  dueTime: string;
+};
+
+export type CreateAssignmentResponse = { assignmentId: string; message: string };
+
+export type WorkResponse = {
+  level: "full" | "status";
+  subject: string;
+  title: string;
+  className: string;
+  studentName: string;
+  dueLabel: string;
+  status: string;
+  cancelled: boolean;
+  /** true when the student acknowledged the latest version */
+  seenLatest: boolean;
+  instructions?: string;
+  notes?: string | null;
+};

@@ -64,6 +64,29 @@ export async function createDraft(user: Actor, fields: DraftFields) {
   });
 }
 
+/** App form: updates an existing DRAFT (from "Edit in app") or creates a new one. */
+export async function saveDraft(user: Actor, draftId: string | null, fields: DraftFields) {
+  if (!draftId) return createDraft(user, fields);
+  const existing = await prisma.assignment.findUnique({ where: { id: draftId } });
+  if (!existing || existing.status !== "DRAFT") return null;
+  assertCanManage(user, existing);
+  const klass = await prisma.class.findUniqueOrThrow({ where: { id: fields.classId } });
+  assertCanManage(user, { classId: klass.id, subject: fields.subject, schoolId: klass.schoolId });
+  return prisma.assignment.update({
+    where: { id: existing.id },
+    data: {
+      schoolId: klass.schoolId,
+      classId: klass.id,
+      subject: fields.subject,
+      title: fields.title.trim(),
+      instructions: fields.instructions.trim() || fields.title.trim(),
+      notes: fields.notes?.trim() || null,
+      dueAt: fields.dueAt,
+    },
+    include: { class: true },
+  });
+}
+
 /** Deletes a draft (preview [Cancel]). Already published → refused. */
 export async function deleteDraft(user: Actor, assignmentId: string): Promise<"deleted" | "not_draft"> {
   const a = await prisma.assignment.findUnique({ where: { id: assignmentId } });
