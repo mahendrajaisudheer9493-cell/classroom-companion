@@ -13,6 +13,7 @@ import {
   touch,
   type OwnSA,
 } from "@/lib/domain/student-actions";
+import { pickAssignment } from "@/lib/domain/pick-assignment";
 import { getEnv } from "@/lib/env";
 import { interpretStudentMessage, type StudentIntent } from "@/lib/llm/interpret-student";
 import { formatIst, toIst } from "@/lib/time";
@@ -96,13 +97,14 @@ async function askNotSure(ctx: BotContext, sas: OwnSA[], text: string) {
 /** Resolves which homework (model's id, the only one, or ask), then acts. */
 export async function routeIntent(ctx: BotContext, req: Request, saId: string | null, sas?: OwnSA[]) {
   const open = sas ?? (await openAssignments(ctx.appUser.student!.id));
-  const chosen = (saId && open.find((sa) => sa.id === saId)) || (open.length === 1 ? open[0] : null);
-  if (chosen) return perform(ctx, req, chosen);
   if (open.length === 0) return ctx.reply("You have no open homework right now.", { reply_markup: openAppKeyboard("Open my work") });
+  // Every reply below names the homework, so an automatic pick is always visible to the student.
+  const { chosen, ranked } = pickAssignment(req.intent, open, saId);
+  if (chosen) return perform(ctx, req, chosen);
 
   const action = await createPending(ctx.appUser.id, P.which, req, STUDENT_PENDING_MINUTES);
   const kb = new InlineKeyboard();
-  for (const sa of open.slice(0, 4)) kb.text(shortLabel(sa), callbackData(CB.studentWhich, action.id, sa.id)).row();
+  for (const sa of ranked.slice(0, 4)) kb.text(shortLabel(sa), callbackData(CB.studentWhich, action.id, sa.id)).row();
   return ctx.reply("Which homework is this about?", { reply_markup: kb });
 }
 
@@ -144,7 +146,7 @@ export async function perform(ctx: BotContext, req: Request, sa: OwnSA) {
     }
     case "done_cannot_upload":
       await touch(sa.id);
-      return ctx.reply("No problem.", {
+      return ctx.reply(`No problem. How will you hand in ${label}?`, {
         reply_markup: new InlineKeyboard()
           .text("Bringing it to class", callbackData(CB.inClass, sa.id))
           .text("I'll type my answer", callbackData(CB.typeAnswer, sa.id)),

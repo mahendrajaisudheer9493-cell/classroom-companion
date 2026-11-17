@@ -5,6 +5,7 @@ import { edit } from "@/lib/bot/edit";
 import { submitReply } from "@/lib/bot/handlers/student-card";
 import { EXPIRED, P, STUDENT_PENDING_MINUTES } from "@/lib/bot/handlers/student-text";
 import { callbackData, CB, openAppKeyboard } from "@/lib/bot/keyboards";
+import { pickAssignment } from "@/lib/domain/pick-assignment";
 import { consumePending, createPending, findOpenPending } from "@/lib/domain/pending";
 import { addFileDoubt, loadOwn, openAssignments, submitWork, type OwnSA } from "@/lib/domain/student-actions";
 
@@ -59,11 +60,13 @@ export async function handleStudentMedia(ctx: BotContext) {
 
   const sas = await openAssignments(user.student.id);
   if (sas.length === 0) return ctx.reply("You have no open homework right now.", { reply_markup: openAppKeyboard("Open my work") });
-  if (sas.length === 1) return askConfirmFile(ctx, sas[0], file);
+  // One homework still to hand in → confirm that one ("Submit this for …?" names it).
+  const { chosen, ranked } = pickAssignment("submit_file", sas, null);
+  if (chosen) return askConfirmFile(ctx, chosen, file);
 
-  const action = await createPending(user.id, FILE_WHICH, { saIds: sas.map((s) => s.id), file }, STUDENT_PENDING_MINUTES);
+  const action = await createPending(user.id, FILE_WHICH, { saIds: ranked.map((s) => s.id), file }, STUDENT_PENDING_MINUTES);
   const kb = new InlineKeyboard();
-  for (const sa of sas.slice(0, 4)) kb.text(shortLabel(sa), callbackData(CB.fileFor, action.id, sa.id)).row();
+  for (const sa of ranked.slice(0, 4)) kb.text(shortLabel(sa), callbackData(CB.fileFor, action.id, sa.id)).row();
   kb.text("It's a doubt", callbackData(CB.fileDoubt, action.id));
   return ctx.reply("Which homework is this for?", { reply_markup: kb });
 }
