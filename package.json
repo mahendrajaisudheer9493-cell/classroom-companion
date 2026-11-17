@@ -13,7 +13,7 @@
     "db:seed": "tsx prisma/seed.ts",
     "db:reset": "prisma migrate reset --force",
     "bot:dev": "echo 'bot:dev not implemented yet'",
-    "webhook:set": "echo 'webhook:set not implemented yet'",
+    "webhook:set": "tsx scripts/set-webhook.ts",
     "tick": "echo 'tick not implemented yet'",
     "eval": "echo 'eval not implemented yet'",
     "postinstall": "prisma generate"

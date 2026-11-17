@@ -13,3 +13,7 @@ Changes to or clarifications of docs/DESIGN.md. One line each: date · decision 
 - 2026-11-17 · `canViewStudentAssignment` returns "full" for the class teacher; read-only is enforced because every action also requires `canManageClassSubject` · keeps one "what can I see" answer and one "what can I do" answer.
 - 2026-11-17 · Unknown class → 404, someone else's class → 403 · existence of a class id isn't sensitive; the 403 is what the access demo shows.
 - 2026-11-17 · A Telegram user with no membership and no linked student counts as "not linked" for the Mini App (401 not_linked) · the bot creates a User row on first contact, before they join anything.
+- 2026-11-17 · ProcessedUpdate is inserted with `createMany({ skipDuplicates: true })` before handling · a retry is skipped without a noisy P2002 error log; if the handler then fails, the error boundary replies "Something went wrong" and Telegram does not retry (the user taps again).
+- 2026-11-17 · Join-flow buttons carry the join code id (`pk:<joinCodeId>:<studentId>`, 54 bytes) and every tap re-checks code validity, class and claim on the server · stale or forged buttons can't link to another class.
+- 2026-11-17 · Seed adds a one-use teacher invite `GFSCI8A` (Science teacher, 8A, 30 days) · lets the `t_<CODE>` flow be tested without an invite UI yet.
+- 2026-11-17 · The bot overwrites `User.displayName` with the Telegram name on every update (per task spec) · rosters always show `Student.name`, so a student's identity never comes from Telegram.

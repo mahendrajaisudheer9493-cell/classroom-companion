@@ -115,6 +115,18 @@ async function main() {
   const arjun = await upsertUser(ARJUN_TELEGRAM_ID, "Mr. Arjun Das");
   await ensureMembership({ userId: arjun.id, schoolId: greenfield.id, classId: c8B.id, role: Role.SUBJECT_TEACHER, subject: "English" });
 
+  // A one-use teacher invite, to try the t_<CODE> flow (re-seeding doesn't reset a used invite).
+  const invite = await prisma.teacherInvite.upsert({
+    where: { code: "GFSCI8A" },
+    update: {},
+    create: {
+      schoolId: greenfield.id,
+      code: "GFSCI8A",
+      grants: [{ classId: c8A.id, role: Role.SUBJECT_TEACHER, subject: "Science" }],
+      expiresAt: now.plus({ days: 30 }).toJSDate(),
+    },
+  });
+
   // Students
   const raviUser = await upsertUser(seedEnv.SEED_STUDENT_TELEGRAM_ID, "Ravi Kumar");
   const students8A = [
@@ -199,6 +211,7 @@ Greenfield Public School (Asia/Kolkata)
   Mrs. Lakshmi Rao (tg ${lakshmi.telegramId}): Maths 8A, Maths 8B, class teacher 8A
   Coordinator: ${coordLabel}
   Mr. Arjun Das (tg ${arjun.telegramId}, fake): English 8B
+  Teacher invite: ${invite.code} → Science teacher 8A (${invite.usedAt ? "already used" : `unused, expires ${fmt(invite.expiresAt)}`})
   8A students: ${names(students8A)}
   8B students: ${names(students8B)}
   Assignment: [English 8B] "${english.title}", PUBLISHED, due ${fmt(english.dueAt)}, ${students8B.length} students
