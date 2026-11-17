@@ -26,6 +26,7 @@ import {
 import { closeOpenPending, consumePending, createPending, findOpenPending } from "@/lib/domain/pending";
 import { getEnv } from "@/lib/env";
 import { parseTeacherMessage, type TeacherParse } from "@/lib/llm/parse-teacher";
+import { handleRiskQuestion } from "@/lib/bot/handlers/risk-question";
 import { nowIst, toIst } from "@/lib/time";
 
 // Teacher chat: "8A maths ex 4.2 due day after" → preview → [Send]; "move maths 4.2 to monday" →
@@ -96,6 +97,11 @@ export async function handleTeacherText(ctx: BotContext, text: string) {
     return ctx.reply(COULD_NOT_READ, { reply_markup: createInAppKeyboard() });
   }
   const p = parsed.data;
+  if (p.intent === "question") return handleRiskQuestion(ctx, text);
+  if (teachingSlots(user).length === 0) {
+    // Class teacher / coordinator only: they can ask, but creating work needs a subject.
+    return ctx.reply('You can ask me "who is at risk this week?". To set work you need a subject teacher role; ask your coordinator.');
+  }
   if (p.intent === "create") {
     return advanceDraft(ctx, {
       sourceText: text,

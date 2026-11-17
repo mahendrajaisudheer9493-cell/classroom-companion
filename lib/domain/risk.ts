@@ -1,5 +1,9 @@
 import type { RiskStudentDto } from "@/app/app/_lib/types";
+import type { AppUser } from "@/lib/auth/user";
+import type { TeachingSlot } from "@/lib/domain/assignment-draft";
 import { teachingSlots } from "@/lib/domain/assignments";
+import { classSlots } from "@/lib/domain/class-views";
+import { slotsFor } from "@/lib/domain/school-health";
 import { isOverdue, isSilent, isStuck, loadTriageRows, type TriageRow } from "@/lib/domain/triage";
 import { getEnv } from "@/lib/env";
 
@@ -59,4 +63,33 @@ export function riskFrom(rows: TriageRow[], now: Date, silentAfterMinutes: numbe
 export async function atRiskFor(user: Parameters<typeof teachingSlots>[0], now = new Date()): Promise<RiskStudentDto[]> {
   const rows = await loadTriageRows(teachingSlots(user));
   return riskFrom(rows, now, getEnv().SILENT_AFTER_MINUTES);
+}
+
+/**
+ * What a "who is at risk?" question in chat may look at: own class+subjects (subject teacher),
+ * every subject of their class (class teacher), every class of their school (coordinator; the
+ * facts are names, signals and assignment titles only, never submissions or doubts).
+ */
+export async function riskScopeSlots(user: AppUser): Promise<TeachingSlot[]> {
+  const slots: TeachingSlot[] = [...teachingSlots(user)];
+  for (const m of user.memberships) {
+    if (m.role === "CLASS_TEACHER" && m.classId) slots.push(...(await classSlots(m.classId)));
+    if (m.role === "COORDINATOR") slots.push(...(await slotsFor({ schoolId: m.schoolId })));
+  }
+  const seen = new Set<string>();
+  return slots.filter((s) => {
+    const key = `${s.classId}|${s.subject.toLowerCase()}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+/** Risk facts for whoever asks in chat, plus every student name in scope (to check the model's answer). */
+export async function riskFactsForAsker(user: AppUser, now = new Date()) {
+  const rows = await loadTriageRows(await riskScopeSlots(user));
+  return {
+    students: riskFrom(rows, now, getEnv().SILENT_AFTER_MINUTES),
+    rosterNames: [...new Set(rows.map((r) => r.studentName))],
+  };
 }

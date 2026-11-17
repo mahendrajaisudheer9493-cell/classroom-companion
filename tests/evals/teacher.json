@@ -49,6 +49,9 @@
     {
       "message": "Maths 8A ex 5.1 q1-10, due Monday. If you were absent on Friday, just do q1-5.",
       "expect": { "intent": "create", "classNames": ["8A"], "dueDate": "2026-11-23", "timeOfDay": null, "notes": true }
-    }
+    },
+    { "message": "who is at risk this week?", "expect": { "intent": "question" } },
+    { "message": "which students need help in 8A?", "expect": { "intent": "question" } },
+    { "message": "who should I talk to tomorrow", "expect": { "intent": "question" } }
   ]
 }

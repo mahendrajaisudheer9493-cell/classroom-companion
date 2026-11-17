@@ -93,7 +93,7 @@ export function strugglingFrom(rows: TriageRow[], now: Date, silentAfterMinutes:
 }
 
 /** All (class, subject) pairs with published work in the class: the class teacher sees every subject. */
-async function classSlots(classId: string): Promise<TeachingSlot[]> {
+export async function classSlots(classId: string): Promise<TeachingSlot[]> {
   const klass = await prisma.class.findUniqueOrThrow({ where: { id: classId } });
   const subjects = await prisma.assignment.findMany({
     where: { classId, status: "PUBLISHED" },

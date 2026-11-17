@@ -67,7 +67,7 @@ async function loadClassForCoordinator(user: AccessUser & { id: string }, classI
 }
 
 /** Every (class, subject) with published work, as triage slots. */
-async function slotsFor(where: { schoolId?: string; classId?: string }): Promise<TeachingSlot[]> {
+export async function slotsFor(where: { schoolId?: string; classId?: string }): Promise<TeachingSlot[]> {
   const pairs = await prisma.assignment.findMany({
     where: { ...where, status: "PUBLISHED" },
     distinct: ["classId", "subject"],

@@ -11,9 +11,11 @@ export async function handleOtherMessage(ctx: BotContext) {
   if (!isLinked(ctx.appUser)) return ctx.reply(T.askTeacher);
   const text = ctx.message?.text;
   if (text && !text.startsWith("/")) {
-    // Both roles: anyone who teaches a subject is read as a teacher; otherwise a linked student.
+    // Anyone who teaches a subject is read as a teacher; otherwise a linked student; otherwise
+    // staff without a subject (class teacher, coordinator), who can ask "who is at risk this week?".
     if (teachingSlots(ctx.appUser).length > 0) return handleTeacherText(ctx, text);
     if (ctx.appUser.student) return handleStudentText(ctx, text);
+    if (ctx.appUser.memberships.length > 0) return handleTeacherText(ctx, text);
   }
   const label = ctx.appUser.memberships.length > 0 ? "Open app" : "Open my work";
   return ctx.reply(T.notYet, { reply_markup: openAppKeyboard(label) });

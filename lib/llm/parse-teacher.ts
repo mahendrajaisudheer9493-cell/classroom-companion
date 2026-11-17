@@ -3,7 +3,7 @@ import { z } from "zod";
 import { asData, callTool, type ToolCallResult } from "@/lib/llm/client";
 import type { LogContext } from "@/lib/log";
 
-// Reads a teacher's chat message as create / change / cancel. The model only extracts fields;
+// Reads a teacher's chat message as create / change / cancel / question. The model only extracts fields;
 // lib/domain/assignment-draft.ts decides classes, times, past dates and what to ask.
 
 const date = z.string().regex(/^\d{4}-\d{2}-\d{2}$/);
@@ -11,10 +11,10 @@ const time = z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/);
 const timeOfDay = z.enum(["morning", "afternoon", "evening"]);
 
 export const teacherParseSchema = z.object({
-  intent: z.enum(["create", "change", "cancel", "other"]).describe("What the teacher wants to do."),
+  intent: z.enum(["create", "change", "cancel", "question", "other"]).describe("What the teacher wants to do."),
   classNames: z.array(z.string()).describe('Class names mentioned, normalised like "8A". Empty if none.'),
   subject: z.string().nullable().describe("Subject, mapped to one of the teacher's subjects, or null if not stated."),
-  title: z.string().describe('Short title, e.g. "Exercise 4.2, q1–q8". Empty for change/cancel/other.'),
+  title: z.string().describe('Short title, e.g. "Exercise 4.2, q1–q8". Empty for change/cancel/question/other.'),
   instructions: z.string().describe("What students must do, without the due date and without conditional exceptions."),
   notes: z
     .string()
@@ -51,7 +51,8 @@ Intents:
 - create: a new piece of homework or classwork for students.
 - change: change the due date/time or instructions of an existing assignment from the recent list.
 - cancel: cancel an existing assignment from the recent list.
-- other: anything else (greetings, questions, chit-chat, unclear text).
+- question: the teacher asks which students need attention, e.g. "who is at risk this week?", "which students need help?", "who should I talk to tomorrow?", "anyone falling behind?". Leave every other field empty/null.
+- other: anything else (greetings, chit-chat, other questions, unclear text).
 
 Rules:
 - Resolve dates ONLY with the calendar given. "tomorrow" = the day after today. "day after" or "day after tomorrow" = two days after today. A weekday name, "next <weekday>" or "this <weekday>" = the first such weekday strictly after today (if today is Tuesday the 17th, "Friday" and "next Friday" are both Friday the 20th; use the calendar). If no day is stated, dueDate is null. Never invent a date.

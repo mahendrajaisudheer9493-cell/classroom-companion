@@ -4,7 +4,7 @@
 - One school pilot (Greenfield, 8A and 8B), IST.
 - Students use Telegram, sometimes on a family phone. One account links to one student.
 - Teachers type homework and confirm a preview.
-- Free tiers: Vercel Hobby (60 s functions), Supabase, Claude Haiku 5.5.
+- Free tiers: Vercel Hobby, Supabase, Claude Haiku 5.5.
 
 ## Domain and access model
 Schools have classes with roster entries (`Student`). A Telegram account (`User`) links through a class code: the student confirms the class, then picks an unclaimed name. Roles live on memberships, so one person can hold several.
@@ -27,7 +27,7 @@ Status lives per student on `StudentAssignment`: ASSIGNED → ACKNOWLEDGED → I
 - **Stuck:** only "still stuck?" the next morning.
 - **Overdue:** "was due" at 07:00 the next day.
 
-Nothing is evaluated 21:00–07:00. A unique `ReminderFired` key, written with the message, stops repeats. One student's reminders merge into one message. The model may word single reminders; text with a link or another student's name falls back to a template. Teachers get a 07:30 digest of triage counts.
+Nothing is evaluated 21:00–07:00. A unique `ReminderFired` key, written with the message, stops repeats. One student's reminders merge into one message. The model may word single reminders; text with a link or another student's name falls back to a template. Teachers get a 07:30 digest and can ask "who is at risk?"; the model words code-computed facts only.
 
 ## Failures handled
 - **Model** timeout, error or invalid output: buttons or the app form, logged as `model.failure`. Confidence below 0.7: the bot asks.
@@ -41,6 +41,6 @@ Nothing is evaluated 21:00–07:00. A unique `ReminderFired` key, written with t
 1. An overload warning when a teacher adds work to a heavy day.
 2. Sibling accounts and transfers.
 3. Asking which Friday "next Friday" means.
-4. Answering "who is at risk?" in chat.
+4. A weekly "at risk" summary for class teachers.
 5. A local long-polling bot script.
 6. Tracking the known-status rate.
