@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client";
+import { Prisma, PrismaClient } from "@prisma/client";
 
 // One PrismaClient per process. In dev, Next.js hot reload re-imports modules, so we park the
 // client on globalThis to avoid opening a new connection pool on every reload. On serverless
@@ -13,3 +13,8 @@ export const prisma =
   });
 
 if (process.env.NODE_ENV !== "production") globalForPrisma.prisma = prisma;
+
+/** True for a unique-constraint violation (Prisma P2002), the signal for "already done" in idempotent writes. */
+export function isUniqueViolation(err: unknown): boolean {
+  return err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002";
+}
