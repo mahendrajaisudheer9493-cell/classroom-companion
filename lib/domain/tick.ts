@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/db";
-import { REMINDER_KINDS, runReminders, type ReminderKind, type ReminderRun } from "@/lib/domain/reminders";
+import { modelWording, REMINDER_KINDS, runReminders, type ReminderKind, type ReminderRun } from "@/lib/domain/reminders";
 import { sendDue, type SendSummary } from "@/lib/queue/outbound";
 
 // The scheduler entry: Supabase pg_cron calls POST /api/tick every minute. All jobs live in the DB,
@@ -30,7 +30,7 @@ export type TickSummary = {
 
 /** reminders → digests → send whatever is due (including what was just queued). */
 export async function runTick(now = new Date()): Promise<TickSummary> {
-  const reminders = await runReminders(now);
+  const reminders = await runReminders(now, { wordSingle: modelWording });
   const digests = 0;
   const queue = await sendDue(100);
   return {

@@ -29,6 +29,9 @@ export async function callTool<T>(opts: {
   toolDescription: string;
   zodSchema: z.ZodType<T>;
   inputSchema?: Anthropic.Tool.InputSchema;
+  /** Overrides LLM_TIMEOUT_MS (e.g. 4 s for reminder wording, which has a template to fall back on). */
+  timeoutMs?: number;
+  maxTokens?: number;
   /** For the model.failure log, e.g. "parse_teacher". */
   purpose: string;
   logContext?: LogContext;
@@ -49,7 +52,7 @@ export async function callTool<T>(opts: {
       const response = await getClient().messages.create(
         {
           model: env.ANTHROPIC_MODEL,
-          max_tokens: 2048,
+          max_tokens: opts.maxTokens ?? 2048,
           system: opts.system,
           messages: [{ role: "user", content: opts.content }],
           tools: [
@@ -61,7 +64,7 @@ export async function callTool<T>(opts: {
           ],
           tool_choice: { type: "tool", name: opts.toolName },
         },
-        { timeout: env.LLM_TIMEOUT_MS, maxRetries: 0 },
+        { timeout: opts.timeoutMs ?? env.LLM_TIMEOUT_MS, maxRetries: 0 },
       );
 
       if (response.stop_reason === "refusal") return fail("refusal");

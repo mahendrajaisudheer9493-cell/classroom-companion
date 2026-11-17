@@ -29,6 +29,7 @@ function row(overrides: Partial<ReminderRow>): ReminderRow {
     studentId: `st${n}`,
     studentName: `Student ${n}`,
     linked: true,
+    schoolId: "school1",
     classId: "c8a",
     assignmentId: `a${n}`,
     assignmentStatus: "PUBLISHED",

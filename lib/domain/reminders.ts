@@ -6,6 +6,7 @@ import { assignmentLabel } from "@/lib/bot/cards";
 import { appUrl, callbackData, CB } from "@/lib/bot/keyboards";
 import { prisma } from "@/lib/db";
 import { getEnv } from "@/lib/env";
+import { phraseReminder } from "@/lib/llm/phrase";
 import { enqueue, type OutboundPayload } from "@/lib/queue/outbound";
 import { formatIst, isQuietHours, toIst, type QuietHours } from "@/lib/time";
 
@@ -21,6 +22,7 @@ export type ReminderRow = {
   studentId: string;
   studentName: string;
   linked: boolean;
+  schoolId: string;
   classId: string;
   assignmentId: string;
   assignmentStatus: string;
@@ -281,6 +283,7 @@ async function loadReminderRows(schoolId?: string) {
       studentId: sa.studentId,
       studentName: sa.student.name,
       linked: sa.student.userId !== null,
+      schoolId: sa.assignment.schoolId,
       classId: sa.assignment.classId,
       assignmentId: sa.assignmentId,
       assignmentStatus: sa.assignment.status,
@@ -303,6 +306,24 @@ class AlreadyFired extends Error {}
 /** Wording hook for single reminders (the model in production; the template in tests). */
 export type WordSingle = (item: ReminderItem, now: Date) => Promise<{ text: string; wording: "llm" | "template" }>;
 export const templateWording: WordSingle = async (item, now) => ({ text: reminderTemplate(item.kind, item.row, now), wording: "template" });
+
+const PHRASE_LIMIT_PER_TICK = 20;
+
+/** Production wording: the model phrases the line; any failure falls back to the template. */
+export const modelWording: WordSingle = async (item, now) => {
+  const others = await prisma.student.findMany({
+    where: { classId: item.row.classId, id: { not: item.studentId } },
+    select: { name: true },
+  });
+  const otherNames = others.flatMap((o) => [o.name, o.name.split(" ")[0]]);
+  const firstName = item.row.studentName.split(" ")[0];
+  const template = reminderTemplate(item.kind, item.row, now);
+  return phraseReminder(
+    { kind: item.kind, studentFirstName: firstName, subject: item.row.subject, title: item.row.title, dueText: dueTextFor(item.kind, now, item.row.dueAt) },
+    template,
+    { otherNames: otherNames.filter((n) => n.toLowerCase() !== firstName.toLowerCase()), logContext: { schoolId: item.row.schoolId, classId: item.row.classId, assignmentId: item.row.assignmentId, studentAssignmentId: item.saId } },
+  );
+};
 
 export type RunOptions = {
   wordSingle?: WordSingle;
@@ -338,10 +359,16 @@ export async function runReminders(now = new Date(), opts: RunOptions = {}): Pro
     perStudent.set(d.studentId, items);
   }
 
-  for (const items of perStudent.values()) {
+  // Linked but never started the bot → nothing to send to.
+  const groups = [...perStudent.values()].filter((items) => bySa.get(items[0].saId)!.user?.chatId);
+  // Single reminders get model wording: in parallel and capped per tick so the tick stays well
+  // inside the 60 s function limit (e.g. the 07:00 burst); the rest use the template.
+  const singles = groups.filter((g) => g.length === 1).slice(0, PHRASE_LIMIT_PER_TICK);
+  const words = new Map(await Promise.all(singles.map(async ([item]) => [item.key, await wordSingle(item, now)] as const)));
+
+  for (const items of groups) {
     const first = bySa.get(items[0].saId)!;
-    if (!first.user?.chatId) continue; // linked but never started the bot: nothing to send to
-    const single = items.length === 1 ? await wordSingle(items[0], now) : undefined;
+    const single = items.length === 1 ? (words.get(items[0].key) ?? (await templateWording(items[0], now))) : undefined;
     const payload = reminderPayload(items, now, first.schoolId, single);
 
     try {
