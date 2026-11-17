@@ -37,6 +37,7 @@ const envSchema = z
     LLM_TIMEOUT_MS: z.coerce.number().int().positive().default(8000),
 
     // Scheduling (all hours/times are IST)
+    QUIET_HOURS_ENABLED: z.stringbool().default(true),
     QUIET_HOURS_START: hour.default(21),
     QUIET_HOURS_END: hour.default(7),
     SILENT_AFTER_MINUTES: z.coerce.number().int().positive().default(720),

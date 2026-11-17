@@ -1,0 +1,54 @@
+{
+  "description": "Teacher chat messages → parseTeacherMessage. Dates are relative to `now` (Tuesday). Run with: npm run eval",
+  "now": "2026-11-17T10:00:00+05:30",
+  "classes": [
+    { "name": "8A", "subjects": ["Maths", "Science"] },
+    { "name": "8B", "subjects": ["Maths"] }
+  ],
+  "recentAssignments": [
+    { "id": "a_maths42", "subject": "Maths", "className": "8A", "title": "Exercise 4.2, q1–q8", "dueAt": "2026-11-19T08:00:00+05:30" },
+    { "id": "a_lab", "subject": "Science", "className": "8A", "title": "Lab report: acids and bases", "dueAt": "2026-11-20T08:00:00+05:30" }
+  ],
+  "cases": [
+    {
+      "message": "Do exercise 4.2 q1 to q8, bring it day after. Those who did the extra sheet last week can skip q8.",
+      "expect": { "intent": "create", "classNames": [], "dueDate": "2026-11-19", "timeOfDay": null, "notes": true }
+    },
+    {
+      "message": "Change of plan, lab report is due Monday not Friday",
+      "expect": { "intent": "change", "assignmentId": "a_lab", "dueDate": "2026-11-23", "timeOfDay": null }
+    },
+    {
+      "message": "8A maths ex 4.2 q1 to q8 due day after, skip q8 if they did the extra sheet",
+      "expect": { "intent": "create", "classNames": ["8A"], "dueDate": "2026-11-19", "timeOfDay": null, "notes": true }
+    },
+    {
+      "message": "8B maths: worksheet 5, all questions, due tomorrow evening",
+      "expect": { "intent": "create", "classNames": ["8B"], "dueDate": "2026-11-18", "timeOfDay": "evening", "notes": false }
+    },
+    {
+      "message": "Science 8A: read chapter 6 and answer questions 1-5 by Friday 4pm",
+      "expect": { "intent": "create", "classNames": ["8A"], "dueDate": "2026-11-20", "timeOfDay": null, "explicitTime": "16:00", "notes": false }
+    },
+    {
+      "message": "cancel the maths 4.2 homework",
+      "expect": { "intent": "cancel", "assignmentId": "a_maths42" }
+    },
+    {
+      "message": "move maths 4.2 to monday morning",
+      "expect": { "intent": "change", "assignmentId": "a_maths42", "dueDate": "2026-11-23", "timeOfDay": "morning" }
+    },
+    {
+      "message": "8a and 8b maths: revise chapter 3 for the test, due next friday",
+      "expect": { "intent": "create", "classNames": ["8A", "8B"], "dueDate": "2026-11-20", "timeOfDay": null, "notes": false }
+    },
+    {
+      "message": "good morning everyone, have a nice day",
+      "expect": { "intent": "other" }
+    },
+    {
+      "message": "Maths 8A ex 5.1 q1-10, due Monday. If you were absent on Friday, just do q1-5.",
+      "expect": { "intent": "create", "classNames": ["8A"], "dueDate": "2026-11-23", "timeOfDay": null, "notes": true }
+    }
+  ]
+}

@@ -22,3 +22,6 @@ Changes to or clarifications of docs/DESIGN.md. One line each: date · decision 
 - 2026-11-17 · Roster shows which Telegram account claimed each name (`linkedAs`) · lets a teacher spot a wrong claim before unlinking.
 - 2026-11-17 · Class page has a [Share] button (Telegram share sheet) next to [Copy link] · teachers usually post the link into the class group.
 - 2026-11-17 · State machine also allows NEEDS_REVISION → BLOCKED (student stuck on a redo); ACKNOWLEDGE from any state after ASSIGNED keeps the status · DESIGN §4 needs stuck on a revision and re-acknowledging a change without losing progress.
+- 2026-11-17 · LLM calls use forced `tool_choice` on Claude Haiku 5.5 (accepted on this model; it skips thinking for the forced call), no `temperature` (non-default values 400 on Haiku 5.5), one retry on network errors only, `maxRetries: 0` in the SDK · predictable latency under the 8 s budget; timeouts fall back to buttons/form immediately.
+- 2026-11-17 · The teacher-parse prompt includes a 15-day calendar with weekdays · date arithmetic is the model's weakest spot; giving it the calendar turns "day after"/"Monday" into a lookup.
+- 2026-11-17 · Known ambiguity: "next Friday" sometimes resolves to the Friday of next week (eval case 8) · genuinely ambiguous in Indian English; safe because the teacher always sees the exact date in the preview before [Send].
