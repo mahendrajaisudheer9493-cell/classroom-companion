@@ -511,28 +511,39 @@ All checks behaved as expected.
 
 ## How this was built with AI
 
-### Tools used
-- <to be written by the author>
+**Tools.** I used Claude (chat) as a product thinking partner: framing the problem from the pilot notes, the PRD, the design, and writing the build prompts. I used Claude Code in VS Code to write and test the code, one task at a time. I tested every task myself on three real Telegram accounts before moving on.
 
-### How I split the work into tasks
-- <to be written by the author>
+**How I split the work.** First the problem and the PRD, then a design doc with every decision written down (docs/DESIGN.md), then a CLAUDE.md with non-negotiable rules (server-side access, idempotency, one queue for all sends, LLM output never trusted). The build ran as 8 tasks, each ending in tests, a commit and a phone test, so a working slice existed at every point.
 
-### Where I overrode or corrected the AI
-- <to be written by the author>
+**Where I decided or overrode.**
 
-Facts to draw on (from [docs/DECISIONS.md](docs/DECISIONS.md) and the git history), to edit as you see fit:
-- **Prisma pinned to 6.x.** The newest Prisma drops `url`/`directUrl` from the schema, which breaks the documented Supabase pooled + direct setup.
-- **Student confidence redefined after the first eval.** The intent was right on every case, but confidence was low on "ok" and "half done" whenever the homework wasn't named. Confidence now covers the intent only; an unclear assignment is `assignmentId: null`, and code asks "Which homework?".
-- **"next Friday" kept as a known failing case** instead of tuning the prompt to pass it. It's ambiguous, and the preview protects the teacher.
-- **A 15-day calendar added to the teacher prompt** after date arithmetic proved the model's weakest spot.
-- **A commit with a failing test was caught and fixed.** `03a616d` was committed with a failing test because the check chain read its exit status from `tail`. It was fixed in `571d3a2` ("treat repeated [Mark resolved] as a no-op"), and every check since runs with `set -o pipefail`.
-- **Eval failures redefined:** a case below the confidence threshold counts as failed, because the bot would ask instead of act.
-- **Reminders kept out of quiet hours** instead of queued for 07:00, so nothing piles up overnight.
-- **"Run reminders now" names only the teacher's own students.** This was caught in review: the tick is global, so its result could have leaked names across classes.
-- **The reminder integration test was limited to a throwaway school** after noticing the job scans the whole database and could have queued real messages to real phones.
-- **The "still stuck?" reminder prompt was fixed** after a real-model check said "yesterday you mentioned" for a student who got stuck 2 minutes earlier.
-- **"Which homework?" was asked too often**, even with only one homework left to hand in. Picking now ranks unsubmitted work first.
-- **Class teacher reads are "full" but every action also needs subject-teacher rights.** One "what can I see" answer and one "what can I do" answer.
+*Problem framing*
+- Pushed back on a teacher-only PRD: students and the coordinator are users in their own right, so the PRD names all three, with one shared root cause ("silence carries no information").
+- Pointed out that teachers teach several sections and may also be class teachers, which led to roles on memberships and a cross-class triage board.
+
+*Chat vs Mini App*
+- Teachers **create assignments in chat** (typed like WhatsApp, with a preview to confirm); **feedback happens in the app**, where the submission is in front of them.
+- Teachers get **student doubts in real time, at any hour**; everything else (submissions, silent, overdue) goes into a **morning digest**.
+- Students can **submit both in chat and in the app**.
+- Doubt replies are written in the app but **delivered to the student in the bot**.
+
+*Flows*
+- Students can **resubmit**; the latest counts and history is kept.
+- Teachers can **mark a doubt resolved**, and the student can still say "I'm still stuck".
+- A deadline change requires students to **re-acknowledge**, so the teacher sees who missed it.
+- The **class teacher sees everything in their class, read-only**; the **coordinator drills down to student names and statuses**, but never submission content.
+- The bot **always asks** when a due time is missing; "morning/afternoon/evening" map to fixed times in code, not in the model.
+
+*Policies and stack*
+- **Access:** strict per-subject access for subject teachers ("access follows responsibility").
+- **Identity:** one class code + "pick your name", with guards.
+- **Reminders:** silent = 12 hours after delivery; due-soon at 6 pm the evening before; no daily cap but merged per student; stuck students never get "please submit" nudges; no digest on empty days.
+- **Stack:** chose Next.js + Supabase over the Render setup the AI first suggested.
+
+*Corrected the AI*
+- Eval tuning: student messages first scored 10/18 because the model lowered confidence when the homework wasn't named. Confidence was redefined as "about the intent only", since code already asks "which homework?". I left "next Friday" as a known case rather than overfitting, because the teacher always confirms the exact date.
+- Bugs found in my own phone testing, not by the AI's tests: the roster form submitted on Enter before the names were pasted; the bot asked "which homework?" even when only one was still open.
+- Kept prompts short after noticing long prompts were getting cut off.
 
 ## Templates and libraries
 

@@ -49,16 +49,14 @@ Steps 1–6 follow the brief in order (same messages as the README's live scenar
 | 4:50–5:15 | A | **Class teacher.** My classes → 8A → **Load**: "3 due · ⚠ Heavy day" → **Struggling**: Sneha, Kiran → tap Sneha → her work in every subject, read-only | "As class teacher I see every subject's deadlines, so I can spot a heavy day, and who is struggling in two or more subjects. Read-only: I can see, not act." |
 | 5:15–5:40 | A | **Coordinator.** Home → **School health** ("⚠ 8A is falling behind") → 8A → English → names and status chips only → back → **School setup** → Invite: 8B · Subject teacher · `Science` → **Create invite** → link with [Copy] [Share] | "As coordinator: per class, open work, percent seen, percent overdue, stuck and linked, with the worst class flagged. I can drill down to names and statuses, never submissions. Setup covers classes from a pasted roster, invites and class teachers, limited to my school." |
 | 5:40–5:55 | B | **LLM boundary.** B types `hmm idk` → "I'm not sure what you mean." with [I'm stuck] [Making progress] [Done] [Open my work] | "When the model isn't sure, it never guesses: the student gets buttons. Timeouts and bad output fall back the same way and are logged." |
-| 5:55–7:00 | Face or slides | **How I built it with AI, and where I overrode it** (about 65 s; your own words, notes below) | — |
+| 5:55–7:00 | Face or slides | **How I built it with AI, and where I overrode it**: the five points below (about 65 s) | See below |
 
-### Notes for the last section (60–90 s; replace with your own)
+### The last section: how I built it with AI (about 65 s)
 
-- **How I split the work:** one design doc and PRD first, then one task at a time (scaffold, bot and access, assignments, student replies, teacher screens, reminders), each ending with typecheck, tests and a commit.
-- **Examples of overriding the AI:**
-  - pinned Prisma 6 when the newest version broke the Supabase setup
-  - redefined confidence after the first student eval
-  - left "next Friday" as a known ambiguous case instead of tuning the prompt to pass it
-  - caught a commit that went in with a failing test
-  - made "Run reminders now" name only my own students
-  - limited the integration tests to a throwaway school so the job couldn't message real phones
-- **What I checked myself:** every LLM output goes through zod, candidate ids and a confidence check, and the access demo runs against the deployed app.
+Five points, from the README's "How this was built with AI". Say them in your own words.
+
+1. **Plan first, then small tasks** (≈15 s). "I used Claude in chat as a product thinking partner: the problem, the PRD and the design, with every decision written down, plus a CLAUDE.md of rules the code must never break: access on the server, no duplicate sends, never trust the model's output. Then Claude Code built it in 8 tasks, each ending in tests, a commit and a test on three real phones."
+2. **I reframed the problem** (≈10 s). "The first PRD only served teachers. I pushed back: students and the coordinator are users too, with one shared root cause, that silence carries no information."
+3. **I made the product calls** (≈15 s). "Assignments are created in chat with a preview, and feedback is given in the app, where the work is in front of you. Doubts reach me in real time, and everything else waits for a morning digest. Stuck students never get 'please submit' nudges."
+4. **I corrected the AI on the model's evaluation** (≈15 s). "Student messages first scored 10 out of 18, because the model lowered its confidence whenever the homework wasn't named. I redefined confidence as being about the intent only, since code already asks 'which homework?'. And I left 'next Friday' as a known ambiguous case instead of overfitting, because the teacher confirms the exact date."
+5. **My own phone testing found what the tests missed** (≈10 s). "The roster form submitted on Enter before the names were pasted, and the bot asked 'which homework?' when only one was still open. Both were found on the phones and fixed with tests."
