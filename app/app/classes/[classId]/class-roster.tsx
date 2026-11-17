@@ -1,8 +1,8 @@
 "use client";
 
-import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
+import { BackNav } from "@/app/app/_components/nav";
 import { Button, Loading, Notice, Row, Section } from "@/app/app/_components/ui";
 import { apiFetch, confirmDialog, shareInTelegram, type ApiResult } from "@/app/app/_lib/telegram";
 import type { ClassLink, RosterResponse } from "@/app/app/_lib/types";
@@ -63,9 +63,7 @@ export function ClassRoster() {
 
   return (
     <>
-      <Link href="/app" className="mb-3 inline-block text-sm text-tg-link">
-        ‹ My classes
-      </Link>
+      <BackNav />
       <h1 className="text-xl font-semibold">{klass.name}</h1>
       <p className="mb-5 text-sm text-tg-hint">
         {klass.schoolName} · linked {linked} / {total}

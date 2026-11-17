@@ -66,21 +66,6 @@ export type CreateAssignmentBody = {
 
 export type CreateAssignmentResponse = { assignmentId: string; message: string };
 
-export type WorkResponse = {
-  level: "full" | "status";
-  subject: string;
-  title: string;
-  className: string;
-  studentName: string;
-  dueLabel: string;
-  status: string;
-  cancelled: boolean;
-  /** true when the student acknowledged the latest version */
-  seenLatest: boolean;
-  instructions?: string;
-  notes?: string | null;
-};
-
 export type TriageFlagName = "hasnt_seen_change" | "not_on_telegram" | "unanswered_question" | "overdue";
 
 export type TriageItemDto = {
@@ -179,4 +164,43 @@ export type ReviewResponse = {
   canReview: boolean;
   submissions: SubmissionDto[];
   feedback: FeedbackDto[];
+};
+
+export type MyWorkItem = {
+  saId: string;
+  subject: string;
+  title: string;
+  dueLabel: string;
+  status: string;
+  updated: boolean; // a change the student hasn't acknowledged
+};
+
+export type MyWorkResponse = {
+  overdue: MyWorkItem[];
+  today: MyWorkItem[];
+  week: MyWorkItem[];
+  later: MyWorkItem[];
+  done: MyWorkItem[];
+};
+
+export type WorkDetailResponse = {
+  level: "full" | "status";
+  isOwner: boolean;
+  saId: string;
+  subject: string;
+  title: string;
+  className: string;
+  studentName: string;
+  dueLabel: string;
+  status: string;
+  cancelled: boolean;
+  instructions?: string;
+  notes?: string | null;
+  /** "Updated: due moved from Thu 19 to Mon 23", when the student hasn't acknowledged the change */
+  changeNote: string | null;
+  canAct: boolean;
+  canSubmit: boolean;
+  submissions: SubmissionDto[];
+  feedback: FeedbackDto[];
+  doubtCount: number;
 };

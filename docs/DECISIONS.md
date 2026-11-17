@@ -52,3 +52,6 @@ Changes to or clarifications of docs/DESIGN.md. One line each: date · decision 
 - 2026-11-17 · Queued teacher replies show "will be delivered at 7:00 am" in the thread, read from the pending OutboundMessage · the teacher sees exactly what the queue will do.
 - 2026-11-17 · Files are previewed by fetching `/api/files/:id` with the initData header and showing a blob URL · `<img src>` can't send the auth header, and the Telegram file URL (with the bot token) never reaches the browser.
 - 2026-11-17 · "Needs revision" requires a comment; "Completed" may be empty · a student must know what to redo.
+- 2026-11-17 · Mini App uploads (≤ 4 MB) are sent by the bot to the student's own chat (caption "Your submission for …") to get a Telegram file_id, then go through the same `submitWork` · files stay in Telegram; the student also sees what they handed in. 4 MB stays under Vercel's request body limit.
+- 2026-11-17 · "My work" groups: Overdue (past due, not submitted) · Due today · This week (7 days) · Later · Done (submitted or completed); cancelled assignments disappear · matches S8; Done includes SUBMITTED so the open lists only show what still needs doing.
+- 2026-11-17 · "Updated" note on the work page is built from the latest `assignment.updated` event (old → new due) · no extra columns; days when the date moved, times when only the time moved.

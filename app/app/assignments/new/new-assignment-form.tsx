@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
+import { BackNav } from "@/app/app/_components/nav";
 import { Button, Loading, Notice, Section } from "@/app/app/_components/ui";
 import { apiFetch, type ApiResult } from "@/app/app/_lib/telegram";
 import type { AssignmentFormResponse, CreateAssignmentBody, CreateAssignmentResponse } from "@/app/app/_lib/types";
@@ -83,9 +84,7 @@ export function NewAssignmentForm() {
 
   return (
     <>
-      <Link href="/app" className="mb-3 inline-block text-sm text-tg-link">
-        ‹ Home
-      </Link>
+      <BackNav />
       <h1 className="mb-5 text-xl font-semibold">{form.data.draft ? "Edit and send" : "New assignment"}</h1>
 
       <Section title="Assignment">
