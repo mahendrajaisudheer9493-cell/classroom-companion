@@ -6,7 +6,7 @@ import { BackNav } from "@/app/app/_components/nav";
 import { Banner, Flags, StatusChip, timeAgo } from "@/app/app/_components/status";
 import { Button, Loading, Notice, Section } from "@/app/app/_components/ui";
 import { apiFetch, type ApiResult } from "@/app/app/_lib/telegram";
-import type { NudgeResponse, TriageItemDto, TriageResponse } from "@/app/app/_lib/types";
+import type { NudgeResponse, RiskStudentDto, TriageItemDto, TriageResponse } from "@/app/app/_lib/types";
 
 type Group = "stuck" | "silent" | "overdue" | "toReview";
 const GROUPS: { key: Group; title: string }[] = [
@@ -72,6 +72,8 @@ export default function TriagePage() {
 
       {notice && <Banner>{notice}</Banner>}
 
+      <AtRisk className={t.classes.find((c) => c.id === classId)?.name ?? null} />
+
       {empty ? (
         <div className="py-16 text-center">
           <p className="text-2xl font-semibold">All clear ✓</p>
@@ -129,5 +131,31 @@ export default function TriagePage() {
         ))
       )}
     </>
+  );
+}
+
+/** "Who is at risk this week?": 2+ warning signs across the teacher's classes (computed on the server). */
+function AtRisk({ className }: { className: string | null }) {
+  const [students, setStudents] = useState<RiskStudentDto[] | null>(null);
+  useEffect(() => {
+    apiFetch<{ students: RiskStudentDto[] }>("/api/app/risk").then((r) => setStudents(r.ok ? r.data.students : []));
+  }, []);
+  const shown = (students ?? []).filter((s) => !className || s.className === className);
+  if (shown.length === 0) return null;
+  return (
+    <Section title={`⚠ At risk this week · ${shown.length}`}>
+      {shown.map((s) => (
+        <Link key={s.studentId} href={`/app/students/${s.studentId}`} className="block border-b border-tg-hint/15 px-4 py-3 last:border-b-0 active:opacity-70">
+          <p className="font-medium">
+            {s.name} <span className="font-normal text-tg-hint">({s.className})</span>
+          </p>
+          <ul className="text-sm text-tg-hint">
+            {s.reasons.map((r) => (
+              <li key={r}>{r}</li>
+            ))}
+          </ul>
+        </Link>
+      ))}
+    </Section>
   );
 }
