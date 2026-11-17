@@ -75,9 +75,9 @@ flowchart LR
 | Role | Bot (chat) | Mini App |
 | --- | --- | --- |
 | Student | Assignment cards with [Got it] [I'm stuck] [Done] [Open] · reminders · free-text replies · submit by photo, file or text · doubt replies · feedback | My work (overdue / today / this week / later / done) · assignment detail with "what changed" · submit (text, in class, upload) · doubt thread · feedback history |
-| Subject teacher | Create, change and cancel by typing, with a preview to confirm · real-time doubt alerts · 07:30 digest | Triage board · status per student · doubt threads and replies · review and feedback · rosters and class links · [Run reminders now] · "New assignment" form (fallback without the LLM) |
-| Class teacher | — | Rosters of their class · read-only access to everything in the class (enforced by the API) |
-| Coordinator | Invite messages only | Names and statuses across the school (enforced by the API). The school health dashboard is not built yet |
+| Subject teacher | Create, change and cancel by typing, with a preview to confirm · real-time doubt alerts · 07:30 digest | Triage board with **⚠ At risk this week** · status per student · doubt threads and replies · review and feedback · rosters and class links · [Run reminders now] · "New assignment" form (fallback without the LLM) |
+| Class teacher | — | Class page tabs: **Roster · Load** (every subject's work by due date, ⚠ Heavy day at 3+) **· Struggling** (stuck, silent or overdue in 2+ subjects) · a student's work across all subjects, read-only |
+| Coordinator | Invite messages only | **School health** (per class: open work, % seen, % overdue, stuck, linked; worst class flagged → per subject → names + statuses) · **School setup** (create a class from a pasted roster, invite teachers, set the class teacher, remove roles) |
 
 **Why this split:** students are 13–14 and often use a shared family phone. A chat message with buttons works on any phone and gets a quick answer. Teachers need to scan 40+ students at once, and a chat list can't do that.
 
@@ -89,8 +89,10 @@ Access follows responsibility. Every bot handler and every API route goes throug
 | --- | --- | --- | --- | --- |
 | Subject teacher | Full: create, change, cancel, review, feedback, reply to doubts | None | None | None |
 | Class teacher | (as subject teacher, if also one) | Read everything, including submissions and feedback; no actions | None | None |
-| Coordinator | — | Names and statuses; no submission content or feedback | Names and statuses; no submission content or feedback | None |
+| Coordinator | — | Names and statuses; no submission content or feedback | Names and statuses; no submission content or feedback; sets up classes, invites and class teachers | None |
 | Student | Only their own assignments, submissions, feedback and doubt threads | | | |
+
+A student's work page (`/app/students/:id`) is open to the student, their class teacher (every subject) and their subject teachers (only their own subjects); everyone else gets 403. Rules: `lib/access/policy.ts` (`canViewClassFull`, `canViewSchoolStatuses`, `canManageSchool`, `studentWorkScope`).
 
 The Mini App never trusts the browser. Every API request carries Telegram's signed `initData` (`Authorization: tma …`), which is checked with HMAC and must be at most 24 h old. Files are streamed through `/api/files/[id]` after the access check, so the bot-token file URL never reaches the browser.
 
@@ -142,6 +144,8 @@ State-aware. Each reminder fires at most once: a unique `ReminderFired` key is w
 | Blocked | **Only** "Still stuck on …?" [Still stuck] [Figured it out] [Open]; no submit, due-soon or overdue reminders | 07:00 IST the next morning | Once per stuck episode |
 | Not handed in after the deadline | "… was due yesterday at 8:00 am." [Submit now] [Bringing it today] [I'm stuck] | 07:00 IST the day after the deadline | Once; after that the teacher's triage board takes over |
 | Submitted / completed / needs revision | Nothing | — | — |
+
+**At risk this week** (top of the triage board): students in the teacher's own classes and subjects with 2 or more of: stuck, silent, overdue, needs revision, 2+ overdue items. It covers work due from 7 days ago to 7 days ahead and is computed by code from the same triage rows.
 
 **Teacher digest:** at 07:30 IST, once per teacher per day, using the same counts as the triage board: "Good morning! Today across your classes: 3 stuck · 5 silent · 2 overdue · 12 to review · 4 haven't seen a change." [Open triage]. It is skipped when every count is zero.
 
@@ -282,7 +286,7 @@ Vercel → Project → **Logs** (or **Deployments → a deployment → Runtime L
 | `feedback.sent` | `lib/domain/teacher-actions.ts` (review feedback and [Checked in class]) |
 | `model.failure` | `lib/llm/client.ts` (timeout, error, invalid output), `lib/llm/phrase.ts` (unsafe reminder text) |
 | `access.denied` | `lib/http.ts`, `lib/auth/request-user.ts`, `lib/bot/bot.ts`, `lib/domain/student-actions.ts`, `lib/domain/acknowledge.ts`, `/api/telegram` (bad secret), `/api/tick` (bad cron secret) |
-| also | `tick.done`, `queue.send_failed`, `queue.dead`, `student.status_changed` |
+| also | `tick.done`, `queue.send_failed`, `queue.dead`, `student.status_changed`, `class.created`, `invite.created`, `class_teacher.set`, `membership.removed` |
 
 ### Rollback
 
@@ -314,6 +318,7 @@ Seed data (`npm run db:seed`):
 | Mr. Arjun Das (fake account) with a published **English** assignment in 8B | The Maths teacher must not see it (not her subject, not her class) |
 | Teacher invite `GFSCI8A` (Science, 8A, one use) | Tries the invite flow: `t.me/greenfield_classroom_bot?start=t_GFSCI8A` |
 | Riverside School, class 7A | Cross-school isolation (`demo:unauthorized` check b) |
+| 8A history for rolls 3–6 only: Maths 4.1 (overdue), English worksheet 3 (overdue) and essay, Science lab report and reading (Mr. Das and Mrs. Priya Nair, fake accounts); Sneha linked to a fake account | Class teacher **Load** (a heavy day in 2 days) and **Struggling** (Sneha, Kiran), school health (8A flagged), **At risk** (Sneha). Ravi and Anu are left out so the live scenario stays exactly as written |
 
 Before the scenario, each phone sends `/start` once.
 
@@ -328,10 +333,21 @@ Before the scenario, each phone sends `/start` once.
 | 5 | A, C | A types `move maths 4.2 to monday morning` → **Confirm**. C taps **Got it** on "Updated", then sends a **photo** → **Yes, submit**. A: triage → To review → **Review** → `show your working` → **Needs revision** | B and C get "Updated: … now due Mon …". Triage shows "hasn't seen the change" until they acknowledge. C gets "Needs revision" with [Resubmit] |
 | 6 | laptop | `npm run demo:unauthorized` | 200 / 403 / 403 / 401 (output below) |
 
+### Class teacher and coordinator (phone A, after the scenario)
+
+Mrs. Rao is also class teacher of 8A and coordinator of Greenfield, so the same phone shows both views.
+
+| Screen | Do this | Expect |
+| --- | --- | --- |
+| Triage board | Open it from the Today card | **⚠ At risk this week**: Sneha (overdue + silent on Maths 4.1) |
+| Class page | Home → **My classes → 8A** → tabs **Load** and **Struggling** | Load: the day after tomorrow has the English essay, Science lab and Science reading → **⚠ Heavy day**. Struggling: Sneha (silent in 3 subjects, overdue in 2) and Kiran (overdue in English and Maths). Tap a name → all their work, read-only |
+| School health | Home → **School health** card | 8A flagged "⚠ falling behind" → tap 8A → per subject → tap English → names and status chips only, no submissions or feedback |
+| School setup | School health → **School setup** | Create class `8C` with a pasted roster → a class link appears. **Invite a teacher**: 8B · Subject teacher · `Science` → **Create invite** → link `t.me/greenfield_classroom_bot?start=t_…` with [Copy] [Share]. Set 8B's class teacher. Remove a role (with confirmation) |
+
 ## Tests
 
 ```bash
-npm run typecheck && npm run lint && npm test   # 131 tests in 16 files
+npm run typecheck && npm run lint && npm test   # 152 tests in 18 files
 npm run build                                   # production build
 npm run eval                                    # real-model eval (costs a fraction of a cent)
 npm run demo:unauthorized                       # access checks against the deployed app
@@ -357,6 +373,8 @@ npm run demo:unauthorized                       # access checks against the depl
 | `tests/integration/student-flow.test.ts` | Low confidence and model failure → buttons, nothing changes; stuck → teacher alert; same file twice → one submission; cancelled assignment refused; expired button does nothing |
 | `tests/integration/teacher-flow.test.ts` | Feedback → status + queued message; 22:30 reply held until 07:00; another student's file → 403; class teacher can't post feedback (403) |
 | `tests/integration/reminders.test.ts` | Blocked → check-in only; two silent → one merged message; a second run fires nothing |
+| `tests/class-school.test.ts` | Class load and heavy days, struggling in 2+ subjects, school health numbers and worst class, roster paste, at-risk signals and window, access for the student page and setup |
+| `tests/integration/school.test.ts` | School health never returns submission, doubt or feedback text at any drill level; another school's coordinator gets 403 on every screen (logged); Load/Struggling class teacher only; student page scope per role; create class from roster; invite grants and 7-day expiry; set class teacher replaces the previous one; can't remove own coordinator role |
 
 ### Representative test cases
 
@@ -410,10 +428,9 @@ All checks behaved as expected.
 ## Known limitations and what I'd build next
 
 **Not built yet**
-- **Class teacher views:** class load across subjects (CT1) and students struggling in 2+ subjects (CT2). The access rules for them are enforced and tested, but there are no screens.
-- **Coordinator school health dashboard (C2):** the home screen shows a placeholder.
-- **Teacher invites:** the invite flow works, but there is no invite UI (one invite is seeded).
 - **Local bot development:** `npm run bot:dev` (long polling) is not implemented; local bot testing needs an https tunnel.
+- **Coordinator invites:** a coordinator role can't be granted from the setup screen (it's set in the seed or database).
+- **Risk questions in chat:** "At risk this week" is a list on the triage board, not a question you can ask the bot.
 
 **Known behaviour**
 - **"next Friday":** can resolve to the Friday of next week. The teacher sees the date in the preview before [Send].
@@ -428,7 +445,7 @@ All checks behaved as expected.
 - **Supabase free tier:** projects pause after a week without activity. The every-minute cron keeps the project awake, but if the cron is paused for days, check the dashboard.
 - **pg_cron:** runs at most once a minute, so reminders can be up to a minute late.
 
-**Week 4** (from the PRD): sibling accounts, student transfers between classes, overload warning (3+ items due the same day), plus the class teacher views and the coordinator dashboard above.
+**Week 4** (from the PRD): sibling accounts, student transfers between classes, and an overload warning to the subject teacher *before* sending work onto a heavy day (the class teacher already sees heavy days).
 
 **Week 12:** risk Q&A for teachers ("who is likely to miss Friday's test?"), a parent view, voice notes; then decide between all of Grade 8 or a second school.
 
