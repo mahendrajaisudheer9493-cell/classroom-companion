@@ -21,3 +21,4 @@ Changes to or clarifications of docs/DESIGN.md. One line each: date · decision 
 - 2026-11-17 · telegram-web-app.js loads with the default `afterInteractive` strategy in `app/app/layout.tsx`; `apiFetch` waits for `window.Telegram.WebApp` · `beforeInteractive` is only allowed in the root layout.
 - 2026-11-17 · Roster shows which Telegram account claimed each name (`linkedAs`) · lets a teacher spot a wrong claim before unlinking.
 - 2026-11-17 · Class page has a [Share] button (Telegram share sheet) next to [Copy link] · teachers usually post the link into the class group.
+- 2026-11-17 · State machine also allows NEEDS_REVISION → BLOCKED (student stuck on a redo); ACKNOWLEDGE from any state after ASSIGNED keeps the status · DESIGN §4 needs stuck on a revision and re-acknowledging a change without losing progress.
