@@ -1,6 +1,7 @@
 import type { BotContext } from "@/lib/bot/context";
 import { confirmJoinKeyboard, openAppKeyboard } from "@/lib/bot/keyboards";
 import { roleLabel, T } from "@/lib/bot/texts";
+import { deliverPendingAssignments } from "@/lib/domain/delivery";
 import { acceptTeacherInvite, lookupJoinCode } from "@/lib/domain/linking";
 import { logEvent } from "@/lib/log";
 
@@ -43,7 +44,9 @@ async function handleTeacherInvite(ctx: BotContext, code: string) {
 
 async function handlePlainStart(ctx: BotContext) {
   const { memberships, student, displayName } = ctx.appUser;
-  if (memberships.length > 0) return ctx.reply(T.welcomeStaff(displayName), { reply_markup: openAppKeyboard() });
-  if (student) return ctx.reply(T.welcomeStudent(student.name), { reply_markup: openAppKeyboard("Open my work") });
-  return ctx.reply(T.askTeacher);
+  if (memberships.length > 0) await ctx.reply(T.welcomeStaff(displayName), { reply_markup: openAppKeyboard() });
+  else if (student) await ctx.reply(T.welcomeStudent(student.name), { reply_markup: openAppKeyboard("Open my work") });
+  else return ctx.reply(T.askTeacher);
+  // A pre-linked student (seed) only gets a chat id on /start: deliver anything published meanwhile.
+  if (student) await deliverPendingAssignments(student.id);
 }

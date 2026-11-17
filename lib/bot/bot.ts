@@ -4,6 +4,16 @@ import type { BotContext } from "@/lib/bot/context";
 import { handleHelp, handleOtherMessage } from "@/lib/bot/handlers/fallback";
 import { handleJoinNo, handleJoinYes, handlePickStudent } from "@/lib/bot/handlers/join";
 import { handleStart } from "@/lib/bot/handlers/start";
+import { handleAck, handleComingSoon } from "@/lib/bot/handlers/student-card";
+import {
+  handleAbort,
+  handleAnswer,
+  handleConfirm,
+  handleDeleteDraft,
+  handleSend,
+  handleWhich,
+} from "@/lib/bot/handlers/teacher";
+import { AccessDenied } from "@/lib/access/policy";
 import { CB } from "@/lib/bot/keyboards";
 import { T } from "@/lib/bot/texts";
 import { prisma } from "@/lib/db";
@@ -17,6 +27,12 @@ async function errorBoundary(ctx: BotContext, next: NextFunction) {
   try {
     await next();
   } catch (err) {
+    if (err instanceof AccessDenied) {
+      await logEvent("access.denied", { reason: err.message, updateId: ctx.update.update_id }, err.context);
+      if (ctx.callbackQuery) await ctx.answerCallbackQuery({ text: err.message.slice(0, 190) }).catch(() => {});
+      else if (ctx.chat) await ctx.reply(err.message).catch(() => {});
+      return;
+    }
     await logEvent(
       "bot.error",
       { updateId: ctx.update.update_id, error: err },
@@ -86,6 +102,17 @@ export function createBot(token: string): Bot<BotContext> {
   bot.callbackQuery(new RegExp(`^${CB.joinYes}:(\\w+)$`), (ctx) => handleJoinYes(ctx, ctx.match[1]));
   bot.callbackQuery(CB.joinNo, handleJoinNo);
   bot.callbackQuery(new RegExp(`^${CB.pick}:(\\w+):(\\w+)$`), (ctx) => handlePickStudent(ctx, ctx.match[1], ctx.match[2]));
+  // Student assignment card
+  const id = "(\\w+)";
+  bot.callbackQuery(new RegExp(`^${CB.ack}:${id}$`), (ctx) => handleAck(ctx, ctx.match[1]));
+  bot.callbackQuery(new RegExp(`^(${CB.stuck}|${CB.done}):${id}$`), handleComingSoon);
+  // Teacher drafts, questions and confirmations
+  bot.callbackQuery(new RegExp(`^${CB.send}:${id}$`), (ctx) => handleSend(ctx, ctx.match[1]));
+  bot.callbackQuery(new RegExp(`^${CB.deleteDraft}:${id}$`), (ctx) => handleDeleteDraft(ctx, ctx.match[1]));
+  bot.callbackQuery(new RegExp(`^${CB.answer}:${id}:${id}$`), (ctx) => handleAnswer(ctx, ctx.match[1], ctx.match[2]));
+  bot.callbackQuery(new RegExp(`^${CB.which}:${id}:${id}$`), (ctx) => handleWhich(ctx, ctx.match[1], ctx.match[2]));
+  bot.callbackQuery(new RegExp(`^${CB.confirm}:${id}$`), (ctx) => handleConfirm(ctx, ctx.match[1]));
+  bot.callbackQuery(new RegExp(`^${CB.abort}:${id}$`), (ctx) => handleAbort(ctx, ctx.match[1]));
   bot.on("callback_query", (ctx) => ctx.answerCallbackQuery({ text: T.buttonExpired }));
 
   bot.on("message", handleOtherMessage);

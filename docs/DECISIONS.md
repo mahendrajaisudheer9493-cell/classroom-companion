@@ -29,3 +29,9 @@ Changes to or clarifications of docs/DESIGN.md. One line each: date · decision 
 - 2026-11-17 · Telegram 400 (e.g. chat not found) is DEAD like 403, not retried · a bad request won't succeed on retry; 429 honours retry_after; other errors back off 2^attempts minutes, DEAD after 6.
 - 2026-11-17 · Outbound payload carries `meta { assignmentId, studentAssignmentId }` · side effects on send (deliveredAt) and cleanup on cancel without extra columns.
 - 2026-11-17 · JobLease is taken with one `INSERT … ON CONFLICT DO UPDATE … WHERE lockedUntil < now` and released at the end of the tick · atomic, no overlapping ticks, self-heals after 55 s if a tick dies.
+- 2026-11-17 · While questions are open (class, date, time), the partial draft lives in a PendingAction; the DRAFT Assignment row is created once class + due time are known · Assignment.classId and dueAt are required columns; the preview (and "Edit in app") always points at a complete draft.
+- 2026-11-17 · Typed answers ("tomorrow 5pm", "4pm") are parsed by code (`parseDueText`, `parseClock`), not the model; a long message while a question is open is treated as a new request · deterministic, instant, and a bare "4" is rejected as ambiguous.
+- 2026-11-17 · "Both" creates one draft (and one preview with its own [Send]) per class · each class is its own assignment with its own roster and status.
+- 2026-11-17 · On a change, students who already received the card get "Updated: …"; students who never received it (unlinked/queued) get the new version of the card instead · nobody gets an update about something they never saw.
+- 2026-11-17 · On cancel, only students who received the card are told; unsent cards/updates/reminders are dropped · no "Cancelled" for work a student never saw.
+- 2026-11-17 · AccessDenied thrown inside a bot handler is answered with its message and logged as access.denied (not "Something went wrong") · the user learns why; the log shows the attempt.

@@ -1,22 +1,10 @@
-import { GrammyError } from "grammy";
 import type { BotContext } from "@/lib/bot/context";
+import { edit } from "@/lib/bot/edit";
 import { openAppKeyboard, pickStudentKeyboard } from "@/lib/bot/keyboards";
 import { T } from "@/lib/bot/texts";
 import { deliverPendingAssignments } from "@/lib/domain/delivery";
 import { claimStudent, listUnclaimedStudents, lookupJoinCodeById } from "@/lib/domain/linking";
 import { logEvent } from "@/lib/log";
-
-type EditExtra = Parameters<BotContext["editMessageText"]>[1];
-
-/** Edit the tapped message. A double tap can try the same edit twice; Telegram's "not modified" is harmless. */
-async function edit(ctx: BotContext, text: string, extra?: EditExtra) {
-  try {
-    await ctx.editMessageText(text, extra);
-  } catch (err) {
-    if (err instanceof GrammyError && err.description.includes("message is not modified")) return;
-    throw err;
-  }
-}
 
 // Callback handlers for the student join flow. Each one re-checks everything on the server
 // (code still valid, student in that class, unclaimed), so stale or forged buttons do nothing harmful.

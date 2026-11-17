@@ -7,6 +7,17 @@ export const CB = {
   joinYes: "jy", // jy:<joinCodeId>
   joinNo: "jn", // jn
   pick: "pk", // pk:<joinCodeId>:<studentId>
+  // student assignment card
+  ack: "ack", // ack:<studentAssignmentId>
+  stuck: "stk", // stk:<studentAssignmentId>
+  done: "don", // don:<studentAssignmentId>
+  // teacher drafts and confirmations
+  send: "snd", // snd:<assignmentId>
+  deleteDraft: "dcx", // dcx:<assignmentId>
+  answer: "q", // q:<pendingActionId>:<value>
+  which: "wh", // wh:<pendingActionId>:<assignmentId>
+  confirm: "cfm", // cfm:<pendingActionId>
+  abort: "abt", // abt:<pendingActionId>
 } as const;
 
 export function callbackData(prefix: string, ...ids: string[]): string {

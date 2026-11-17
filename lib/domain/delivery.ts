@@ -1,8 +1,2 @@
-/**
- * Delivers already-published assignments to a student who just linked (respecting quiet hours).
- * Stub: Task 3 implements it with the OutboundMessage queue.
- */
-export async function deliverPendingAssignments(studentId: string): Promise<{ queued: number }> {
-  void studentId;
-  return { queued: 0 };
-}
+// Kept as the stable import path from Task 2; the implementation lives with the other assignment logic.
+export { deliverPendingAssignments } from "@/lib/domain/assignments";
