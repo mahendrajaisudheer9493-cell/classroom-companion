@@ -1,15 +1,33 @@
-// npm run eval: runs tests/evals/teacher.json against the REAL model (costs a few cents).
+// npm run eval: runs the LLM eval sets against the REAL model (a fraction of a cent per run).
 // Separate from `npm test`, which never calls the API.
 import { config } from "dotenv";
 config({ quiet: true });
 
 import { readFileSync } from "node:fs";
 import { DateTime } from "luxon";
-import { parseTeacherMessage, type TeacherParse } from "@/lib/llm/parse-teacher";
 import { getEnv } from "@/lib/env";
+import { interpretStudentMessage, type StudentInterpretation } from "@/lib/llm/interpret-student";
+import { parseTeacherMessage, type TeacherParse } from "@/lib/llm/parse-teacher";
 import { IST } from "@/lib/time";
 
-type Expect = {
+type Row = { pass: boolean; label: string; ms: number; conf: string; message: string; misses: string[] };
+const iso = (s: string) => DateTime.fromISO(s, { zone: IST });
+
+function printTable(title: string, rows: Row[]) {
+  console.log(`\n── ${title} ──`);
+  rows.forEach((r, i) => {
+    const msg = r.message.length > 60 ? `${r.message.slice(0, 60)}…` : r.message;
+    console.log(`${r.pass ? "PASS" : "FAIL"} | ${String(i + 1).padStart(2)} | ${r.label.padEnd(22)} | conf ${r.conf} | ${String(r.ms).padStart(5)} ms | ${msg}`);
+    if (!r.pass) console.log(`     ↳ ${r.misses.join(", ")}`);
+  });
+  const passed = rows.filter((r) => r.pass).length;
+  console.log(`Accuracy: ${passed}/${rows.length} (${Math.round((passed / rows.length) * 100)}%)`);
+  return { passed, total: rows.length };
+}
+
+// ───────────────────────────── Teacher set ─────────────────────────────
+
+type TeacherExpect = {
   intent: TeacherParse["intent"];
   classNames?: string[];
   dueDate?: string | null;
@@ -18,55 +36,90 @@ type Expect = {
   notes?: boolean;
   assignmentId?: string;
 };
-type EvalFile = {
-  now: string;
-  classes: { name: string; subjects: string[] }[];
-  recentAssignments: { id: string; subject: string; className: string; title: string; dueAt: string }[];
-  cases: { message: string; expect: Expect }[];
-};
 
-const file: EvalFile = JSON.parse(readFileSync("tests/evals/teacher.json", "utf8"));
-const ctx = {
-  now: DateTime.fromISO(file.now, { zone: IST }),
-  classes: file.classes,
-  recentAssignments: file.recentAssignments.map((a) => ({ ...a, dueAt: DateTime.fromISO(a.dueAt, { zone: IST }) })),
-};
-
-function check(expect: Expect, got: TeacherParse): string[] {
-  const misses: string[] = [];
-  const isChange = got.intent === "change";
-  const due = isChange ? got.changes?.dueDate ?? null : got.dueDate;
-  const tod = isChange ? got.changes?.timeOfDay ?? null : got.timeOfDay;
-  const clock = isChange ? got.changes?.explicitTime ?? null : got.explicitTime;
+async function runTeacher() {
+  const file = JSON.parse(readFileSync("tests/evals/teacher.json", "utf8"));
+  const ctx = {
+    now: iso(file.now),
+    classes: file.classes,
+    recentAssignments: file.recentAssignments.map((a: { dueAt: string }) => ({ ...a, dueAt: iso(a.dueAt) })),
+  };
   const norm = (xs: string[]) => xs.map((x) => x.toUpperCase().replace(/\s/g, "")).sort().join(",");
+  const rows: Row[] = [];
+  for (const c of file.cases as { message: string; expect: TeacherExpect }[]) {
+    const started = Date.now();
+    const result = await parseTeacherMessage(c.message, ctx);
+    const misses: string[] = [];
+    if (!result.ok) misses.push(`model failure: ${result.reason}`);
+    else {
+      const got = result.data;
+      const change = got.intent === "change";
+      const due = change ? (got.changes?.dueDate ?? null) : got.dueDate;
+      const tod = change ? (got.changes?.timeOfDay ?? null) : got.timeOfDay;
+      const clock = change ? (got.changes?.explicitTime ?? null) : got.explicitTime;
+      const e = c.expect;
+      if (got.intent !== e.intent) misses.push(`intent=${got.intent}`);
+      if (e.classNames && norm(e.classNames) !== norm(got.classNames)) misses.push(`classes=[${got.classNames}]`);
+      if (e.dueDate !== undefined && due !== e.dueDate) misses.push(`dueDate=${due}`);
+      if (e.timeOfDay !== undefined && tod !== e.timeOfDay) misses.push(`timeOfDay=${tod}`);
+      if (e.explicitTime !== undefined && clock !== e.explicitTime) misses.push(`time=${clock}`);
+      if (e.notes !== undefined && Boolean(got.notes) !== e.notes) misses.push(`notes=${got.notes ? "set" : "none"}`);
+      if (e.assignmentId !== undefined && got.assignmentId !== e.assignmentId) misses.push(`assignmentId=${got.assignmentId}`);
+    }
+    rows.push({
+      pass: misses.length === 0,
+      label: c.expect.intent,
+      ms: Date.now() - started,
+      conf: result.ok ? result.data.confidence.toFixed(2) : " -  ",
+      message: c.message,
+      misses,
+    });
+  }
+  return printTable(`Teacher messages (now: ${ctx.now.toFormat("ccc d LLL yyyy HH:mm")} IST)`, rows);
+}
 
-  if (got.intent !== expect.intent) misses.push(`intent=${got.intent}`);
-  if (expect.classNames && norm(expect.classNames) !== norm(got.classNames)) misses.push(`classes=[${got.classNames}]`);
-  if (expect.dueDate !== undefined && due !== expect.dueDate) misses.push(`dueDate=${due}`);
-  if (expect.timeOfDay !== undefined && tod !== expect.timeOfDay) misses.push(`timeOfDay=${tod}`);
-  if (expect.explicitTime !== undefined && clock !== expect.explicitTime) misses.push(`time=${clock}`);
-  if (expect.notes !== undefined && Boolean(got.notes) !== expect.notes) misses.push(`notes=${got.notes ? "set" : "none"}`);
-  if (expect.assignmentId !== undefined && got.assignmentId !== expect.assignmentId) misses.push(`assignmentId=${got.assignmentId}`);
-  return misses;
+// ───────────────────────────── Student set ─────────────────────────────
+
+type StudentExpect = { intent: StudentInterpretation["intent"] | StudentInterpretation["intent"][]; assignmentId?: string; doubt?: boolean };
+
+async function runStudent() {
+  const file = JSON.parse(readFileSync("tests/evals/student.json", "utf8"));
+  const candidates = file.candidates.map((c: { dueAt: string }) => ({ ...c, dueAt: iso(c.dueAt) }));
+  const threshold = getEnv().LLM_CONFIDENCE_THRESHOLD;
+  const rows: Row[] = [];
+  for (const c of file.cases as { message: string; expect: StudentExpect }[]) {
+    const started = Date.now();
+    const result = await interpretStudentMessage(c.message, candidates);
+    const allowed = Array.isArray(c.expect.intent) ? c.expect.intent : [c.expect.intent];
+    const misses: string[] = [];
+    if (!result.ok) misses.push(`model failure: ${result.reason}`);
+    else {
+      const got = result.data;
+      // What the bot would act on: below the threshold it asks with buttons instead (= "other").
+      const acted = got.confidence < threshold ? "other" : got.intent;
+      if (!allowed.includes(acted)) misses.push(`intent=${got.intent}${acted !== got.intent ? ` (conf ${got.confidence} < ${threshold} → asks)` : ""}`);
+      if (c.expect.assignmentId && got.assignmentId !== c.expect.assignmentId) misses.push(`assignmentId=${got.assignmentId}`);
+      if (c.expect.doubt && !got.doubtText) misses.push("doubtText missing");
+    }
+    rows.push({
+      pass: misses.length === 0,
+      label: allowed.join("|").slice(0, 22),
+      ms: Date.now() - started,
+      conf: result.ok ? result.data.confidence.toFixed(2) : " -  ",
+      message: c.message,
+      misses,
+    });
+  }
+  return printTable("Student messages", rows);
 }
 
 async function main() {
-  console.log(`Model: ${getEnv().ANTHROPIC_MODEL} · now: ${ctx.now.toFormat("ccc d LLL yyyy HH:mm")} IST · ${file.cases.length} cases\n`);
-  let passed = 0;
-  const rows: string[] = [];
-  for (const [i, c] of file.cases.entries()) {
-    const started = Date.now();
-    const result = await parseTeacherMessage(c.message, ctx);
-    const ms = Date.now() - started;
-    const misses = result.ok ? check(c.expect, result.data) : [`model failure: ${result.reason}`];
-    if (misses.length === 0) passed++;
-    const conf = result.ok ? result.data.confidence.toFixed(2) : "-";
-    rows.push(
-      `${misses.length === 0 ? "PASS" : "FAIL"} | ${String(i + 1).padStart(2)} | ${c.expect.intent.padEnd(6)} | conf ${conf} | ${String(ms).padStart(5)} ms | ${c.message.slice(0, 60)}${c.message.length > 60 ? "…" : ""}${misses.length ? `\n     ↳ ${misses.join(", ")}` : ""}`,
-    );
-  }
-  console.log(rows.join("\n"));
-  console.log(`\nAccuracy: ${passed}/${file.cases.length} (${Math.round((passed / file.cases.length) * 100)}%)`);
+  console.log(`Model: ${getEnv().ANTHROPIC_MODEL}`);
+  const teacher = await runTeacher();
+  const student = await runStudent();
+  const passed = teacher.passed + student.passed;
+  const total = teacher.total + student.total;
+  console.log(`\nOverall: ${passed}/${total} (${Math.round((passed / total) * 100)}%)`);
 }
 
 main().catch((err) => {
