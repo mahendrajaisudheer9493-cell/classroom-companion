@@ -48,3 +48,7 @@ Changes to or clarifications of docs/DESIGN.md. One line each: date · decision 
 - 2026-11-17 · [Run reminders now] and the cron share `runTickWithLease()` · same code path and the same lease, so pressing it during a cron tick never double-sends.
 - 2026-11-17 · Nudge dedupeKey `nudge:<saId>:<IST date>`; submitted/completed/unlinked students are skipped and counted · at most one nudge per student per assignment per day.
 - 2026-11-17 · The Telegram BackButton is used inside Telegram; a plain "‹ Back" link appears only in a normal browser · native navigation without a duplicate on-screen control.
+- 2026-11-17 · One endpoint `POST /api/app/doubts/:saId/message` serves both sides: the owning student adds a doubt (teacher alerted), the subject teacher replies (queued, quiet hours) · one thread, one write path; everyone else gets 403.
+- 2026-11-17 · Queued teacher replies show "will be delivered at 7:00 am" in the thread, read from the pending OutboundMessage · the teacher sees exactly what the queue will do.
+- 2026-11-17 · Files are previewed by fetching `/api/files/:id` with the initData header and showing a blob URL · `<img src>` can't send the auth header, and the Telegram file URL (with the bot token) never reaches the browser.
+- 2026-11-17 · "Needs revision" requires a comment; "Completed" may be empty · a student must know what to redo.

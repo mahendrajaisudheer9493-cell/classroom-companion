@@ -80,7 +80,7 @@ async function afterSent(msg: OutboundMessage) {
       data: { deliveredAt: new Date() },
     });
   }
-  if (msg.kind === "doubt.alert" && meta?.doubtMessageId) {
+  if ((msg.kind === "doubt.alert" || msg.kind === "doubt.reply") && meta?.doubtMessageId) {
     await prisma.doubtMessage.updateMany({ where: { id: meta.doubtMessageId, deliveredAt: null }, data: { deliveredAt: new Date() } });
   }
 }

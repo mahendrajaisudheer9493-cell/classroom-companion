@@ -1,6 +1,6 @@
 import type { Prisma } from "@prisma/client";
 import { assertAccess, canManageClassSubject, type AccessUser } from "@/lib/access/policy";
-import { assignmentLabel, nudgeCard, resolvedCard } from "@/lib/bot/cards";
+import { assignmentLabel, feedbackCard, nudgeCard, replyCard, resolvedCard } from "@/lib/bot/cards";
 import { prisma } from "@/lib/db";
 import { transition, IllegalTransition } from "@/lib/domain/state-machine";
 import { logEvent } from "@/lib/log";
@@ -162,4 +162,72 @@ export async function markResolved(user: Teacher, saId: string): Promise<{ statu
   }
   await logEvent("doubt.resolved", { deliverAt }, logCtx(sa, user.id));
   return { status: "resolved", deliverAt };
+}
+
+/** Reply in the doubt thread: DoubtMessage (TEACHER) + message to the student (quiet hours apply). */
+export async function replyToDoubt(user: Teacher, saId: string, text: string): Promise<{ deliverAt: Date | null; doubtMessageId: string }> {
+  const sa = await loadManagedSA(user, saId);
+  if (!sa) throw new Error("not found");
+  const doubt = await prisma.doubtMessage.create({
+    data: { studentAssignmentId: sa.id, authorUserId: user.id, authorRole: "TEACHER", text: text.trim().slice(0, 2000) },
+  });
+  let deliverAt: Date | null = null;
+  const chatId = sa.student.user?.chatId;
+  if (chatId) {
+    const r = await enqueue({
+      chatId,
+      recipientUserId: sa.student.userId,
+      toStudent: true,
+      kind: "doubt.reply",
+      payload: replyCard(sa.assignment, sa.id, user.displayName, doubt.text, doubt.id),
+      dedupeKey: `reply:${doubt.id}`,
+    });
+    if (r.sendAfter > new Date()) deliverAt = r.sendAfter;
+    await sendDue();
+  }
+  await logEvent("doubt.replied", { doubtMessageId: doubt.id, deliverAt }, logCtx(sa, user.id));
+  return { deliverAt, doubtMessageId: doubt.id };
+}
+
+export type FeedbackResultInput = "COMPLETED" | "NEEDS_REVISION";
+
+/**
+ * Review: Feedback row on the latest submission, SUBMITTED → COMPLETED / NEEDS_REVISION through the
+ * state machine, and a message to the student ([Resubmit] on revision). Logs feedback.sent.
+ */
+export async function giveFeedback(
+  user: Teacher,
+  saId: string,
+  input: { comment: string; result: FeedbackResultInput },
+): Promise<{ status: "sent"; deliverAt: Date | null } | { status: "not_submitted" }> {
+  const sa = await loadManagedSA(user, saId);
+  if (!sa || sa.assignment.status !== "PUBLISHED" || sa.status !== "SUBMITTED") return { status: "not_submitted" };
+  const next = transition(sa, input.result === "COMPLETED" ? "FEEDBACK_COMPLETE" : "FEEDBACK_REVISION", "teacher");
+  const latest = await prisma.submission.findFirst({ where: { studentAssignmentId: sa.id }, orderBy: { createdAt: "desc" } });
+
+  const feedback = await prisma.$transaction(async (tx) => {
+    const updated = await tx.studentAssignment.updateMany({ where: { id: sa.id, status: "SUBMITTED" }, data: { status: next } });
+    if (updated.count === 0) return null; // someone reviewed it a moment ago
+    return tx.feedback.create({
+      data: { studentAssignmentId: sa.id, submissionId: latest?.id ?? null, teacherUserId: user.id, comment: input.comment.trim(), result: input.result },
+    });
+  });
+  if (!feedback) return { status: "not_submitted" };
+
+  let deliverAt: Date | null = null;
+  const chatId = sa.student.user?.chatId;
+  if (chatId) {
+    const r = await enqueue({
+      chatId,
+      recipientUserId: sa.student.userId,
+      toStudent: true,
+      kind: "feedback",
+      payload: feedbackCard(sa.assignment, sa.id, user.displayName, input.result, input.comment),
+      dedupeKey: `fb:${feedback.id}`,
+    });
+    if (r.sendAfter > new Date()) deliverAt = r.sendAfter;
+    await sendDue();
+  }
+  await logEvent("feedback.sent", { feedbackId: feedback.id, result: input.result, submissionId: latest?.id }, logCtx(sa, user.id));
+  return { status: "sent", deliverAt };
 }

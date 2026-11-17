@@ -81,14 +81,6 @@ export type WorkResponse = {
   notes?: string | null;
 };
 
-export type DoubtThreadResponse = {
-  studentName: string;
-  className: string;
-  assignment: string;
-  status: string;
-  messages: { id: string; from: "STUDENT" | "TEACHER"; author: string; text: string; at: string }[];
-};
-
 export type TriageFlagName = "hasnt_seen_change" | "not_on_telegram" | "unanswered_question" | "overdue";
 
 export type TriageItemDto = {
@@ -142,3 +134,49 @@ export type AssignmentDetailResponse = {
 export type TickResponse = { ok: true; ms: number; queue: { sent: number; failed: number; dead: number; deferred: number }; reminders: unknown; digest: unknown } | { skipped: true };
 
 export type NudgeResponse = { nudged: number; alreadyToday: number; notOnTelegram: number; skipped: number; deliverAt: string | null; message: string };
+
+export type DoubtThreadDto = {
+  studentName: string;
+  className: string;
+  assignment: string;
+  assignmentId: string;
+  status: string;
+  /** subject teacher */
+  canReply: boolean;
+  canResolve: boolean;
+  /** the student who owns it */
+  isOwner: boolean;
+  messages: {
+    id: string;
+    from: "STUDENT" | "TEACHER";
+    author: string;
+    text: string;
+    at: string;
+    /** teacher replies waiting for quiet hours to end */
+    deliverAt: string | null;
+  }[];
+};
+
+export type SubmissionDto = {
+  id: string;
+  kind: "TEXT" | "PHOTO" | "FILE" | "IN_CLASS";
+  text: string | null;
+  fileName: string | null;
+  mimeType: string | null;
+  at: string;
+};
+
+export type FeedbackDto = { id: string; result: "COMPLETED" | "NEEDS_REVISION"; comment: string; teacher: string; at: string };
+
+export type ReviewResponse = {
+  saId: string;
+  studentName: string;
+  className: string;
+  assignment: string;
+  assignmentId: string;
+  dueLabel: string;
+  status: string;
+  canReview: boolean;
+  submissions: SubmissionDto[];
+  feedback: FeedbackDto[];
+};
