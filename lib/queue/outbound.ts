@@ -12,8 +12,10 @@ import { isQuietHours, nextQuietHoursEnd } from "@/lib/time";
 export type OutboundPayload = {
   text: string;
   reply_markup?: InlineKeyboardMarkup;
+  /** Optional photo/document (Telegram file_id) sent with `text` as its caption, e.g. a doubt photo. */
+  media?: { type: "photo" | "document"; fileId: string };
   /** Links the message to domain rows: side effects on send, cleanup on cancel. */
-  meta?: { assignmentId?: string; studentAssignmentId?: string };
+  meta?: { assignmentId?: string; studentAssignmentId?: string; doubtMessageId?: string };
 };
 
 export type EnqueueInput = {
@@ -78,6 +80,19 @@ async function afterSent(msg: OutboundMessage) {
       data: { deliveredAt: new Date() },
     });
   }
+  if (msg.kind === "doubt.alert" && meta?.doubtMessageId) {
+    await prisma.doubtMessage.updateMany({ where: { id: meta.doubtMessageId, deliveredAt: null }, data: { deliveredAt: new Date() } });
+  }
+}
+
+async function send(chatId: number, payload: OutboundPayload) {
+  const extra = { reply_markup: payload.reply_markup };
+  if (payload.media) {
+    const caption = payload.text.length > 1000 ? `${payload.text.slice(0, 1000)}…` : payload.text; // Telegram caption limit 1024
+    if (payload.media.type === "photo") return telegram().sendPhoto(chatId, payload.media.fileId, { ...extra, caption });
+    return telegram().sendDocument(chatId, payload.media.fileId, { ...extra, caption });
+  }
+  return telegram().sendMessage(chatId, payload.text, { ...extra, link_preview_options: { is_disabled: true } });
 }
 
 export type SendSummary = { sent: number; failed: number; dead: number; deferred: number };
@@ -111,10 +126,7 @@ export async function sendDue(limit = 25): Promise<SendSummary> {
 
     const payload = readPayload(msg);
     try {
-      await telegram().sendMessage(Number(msg.chatId), payload.text, {
-        reply_markup: payload.reply_markup,
-        link_preview_options: { is_disabled: true },
-      });
+      await send(Number(msg.chatId), payload);
       await prisma.outboundMessage.update({
         where: { id: msg.id },
         data: { status: "SENT", sentAt: new Date(), attempts: msg.attempts + 1, lastError: null },

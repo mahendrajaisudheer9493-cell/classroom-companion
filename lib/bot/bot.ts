@@ -4,7 +4,22 @@ import type { BotContext } from "@/lib/bot/context";
 import { handleHelp, handleOtherMessage } from "@/lib/bot/handlers/fallback";
 import { handleJoinNo, handleJoinYes, handlePickStudent } from "@/lib/bot/handlers/join";
 import { handleStart } from "@/lib/bot/handlers/start";
-import { handleAck, handleComingSoon } from "@/lib/bot/handlers/student-card";
+import {
+  handleAck,
+  handleAskTeacher,
+  handleDone,
+  handleFiguredOut,
+  handleInClass,
+  handleProgress,
+  handleSendNow,
+  handleSkip,
+  handleStillStuck,
+  handleStuck,
+  handleStuckAgain,
+  handleStudentNo,
+  handleStudentYes,
+} from "@/lib/bot/handlers/student-card";
+import { resumeChoose, resumeWhich } from "@/lib/bot/handlers/student-text";
 import {
   handleAbort,
   handleAnswer,
@@ -105,7 +120,23 @@ export function createBot(token: string): Bot<BotContext> {
   // Student assignment card
   const id = "(\\w+)";
   bot.callbackQuery(new RegExp(`^${CB.ack}:${id}$`), (ctx) => handleAck(ctx, ctx.match[1]));
-  bot.callbackQuery(new RegExp(`^(${CB.stuck}|${CB.done}):${id}$`), handleComingSoon);
+  const on = (prefix: string, handler: (ctx: BotContext, a: string) => unknown) =>
+    bot.callbackQuery(new RegExp(`^${prefix}:${id}$`), (ctx) => handler(ctx, ctx.match[1]));
+  on(CB.stuck, handleStuck);
+  on(CB.done, handleDone);
+  on(CB.progress, handleProgress);
+  on(CB.sendNow, handleSendNow);
+  on(CB.typeAnswer, handleSendNow);
+  on(CB.inClass, handleInClass);
+  on(CB.stillStuck, handleStillStuck);
+  on(CB.figuredOut, handleFiguredOut);
+  on(CB.stuckAgain, handleStuckAgain);
+  on(CB.studentYes, handleStudentYes);
+  on(CB.studentNo, handleStudentNo);
+  on(CB.skip, handleSkip);
+  on(CB.askTeacher, handleAskTeacher);
+  bot.callbackQuery(new RegExp(`^${CB.studentWhich}:${id}:${id}$`), (ctx) => resumeWhich(ctx, ctx.match[1], ctx.match[2]));
+  bot.callbackQuery(new RegExp(`^${CB.studentChoose}:${id}:([bpd])$`), (ctx) => resumeChoose(ctx, ctx.match[1], ctx.match[2]));
   // Teacher drafts, questions and confirmations
   bot.callbackQuery(new RegExp(`^${CB.send}:${id}$`), (ctx) => handleSend(ctx, ctx.match[1]));
   bot.callbackQuery(new RegExp(`^${CB.deleteDraft}:${id}$`), (ctx) => handleDeleteDraft(ctx, ctx.match[1]));

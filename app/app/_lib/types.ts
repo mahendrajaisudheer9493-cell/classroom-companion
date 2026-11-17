@@ -80,3 +80,20 @@ export type WorkResponse = {
   instructions?: string;
   notes?: string | null;
 };
+
+export type DoubtThreadResponse = {
+  studentName: string;
+  className: string;
+  assignment: string;
+  status: string;
+  messages: { id: string; from: "STUDENT" | "TEACHER"; author: string; text: string; at: string }[];
+};
+
+export type AssignmentOverviewResponse = {
+  assignment: string;
+  className: string;
+  dueLabel: string;
+  status: string;
+  counts: Record<string, number>;
+  total: number;
+};
