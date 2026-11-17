@@ -1,8 +1,25 @@
 @import "tailwindcss";
 
+/* Fallbacks for a normal browser. Inside Telegram, telegram-web-app.js sets the
+   --tg-theme-* variables on <html>, so the Mini App matches the user's Telegram theme. */
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --fallback-hint: #707579;
+  --fallback-link: #2481cc;
+  --fallback-secondary-bg: #f1f1f4;
+  --fallback-destructive: #e53935;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --background: #17212b;
+    --foreground: #f5f5f5;
+    --fallback-hint: #8b9aa7;
+    --fallback-link: #5aa7e8;
+    --fallback-secondary-bg: #232e3c;
+    --fallback-destructive: #ef5350;
+  }
 }
 
 @theme inline {
@@ -10,17 +27,21 @@
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
-}
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  /* Telegram theme → Tailwind: bg-tg-bg, text-tg-hint, bg-tg-button, ... */
+  --color-tg-bg: var(--tg-theme-bg-color, var(--background));
+  --color-tg-text: var(--tg-theme-text-color, var(--foreground));
+  --color-tg-hint: var(--tg-theme-hint-color, var(--fallback-hint));
+  --color-tg-link: var(--tg-theme-link-color, var(--fallback-link));
+  --color-tg-button: var(--tg-theme-button-color, var(--fallback-link));
+  --color-tg-button-text: var(--tg-theme-button-text-color, #ffffff);
+  --color-tg-secondary-bg: var(--tg-theme-secondary-bg-color, var(--fallback-secondary-bg));
+  --color-tg-section-bg: var(--tg-theme-section-bg-color, var(--tg-theme-bg-color, var(--background)));
+  --color-tg-destructive: var(--tg-theme-destructive-text-color, var(--fallback-destructive));
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background: var(--tg-theme-bg-color, var(--background));
+  color: var(--tg-theme-text-color, var(--foreground));
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
 }

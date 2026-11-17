@@ -4,7 +4,7 @@ A Telegram bot + Telegram Mini App that helps teachers assign work, follow up wi
 
 Design: [docs/DESIGN.md](docs/DESIGN.md) · PRD: [docs/PRD.md](docs/PRD.md) · Decisions: [docs/DECISIONS.md](docs/DECISIONS.md)
 
-> Status: scaffold, database schema and demo seed. Bot and Mini App features are not built yet.
+> Status: bot linking (students + teacher invites), Mini App sign-in, access control and teacher roster screens. Assignments come next.
 
 ## Prerequisites
 
@@ -29,6 +29,25 @@ curl localhost:3000/api/health   # → { "ok": true, "db": true, "time": "...IST
 
 Checks: `npm run typecheck && npm test && npm run lint`
 
+## Deploy to Vercel
+
+1. Import the GitHub repo in Vercel (**Add New → Project**). Framework: Next.js (auto-detected); no build settings to change. `npm install` runs `prisma generate` via `postinstall`.
+2. **Settings → Environment Variables**: add every variable from `.env.example` (Production and Preview). Set `APP_URL` to the deployment's https URL, e.g. `https://classroom-companion.vercel.app`. Leave `DEV_AUTH_TELEGRAM_ID` unset (it's ignored in production anyway).
+3. Deploy, then open `https://<your-app>/api/health` → `{"ok":true,"db":true,...}`.
+4. Vercel doesn't run migrations. After a schema change, run `npm run db:migrate` (dev) or `npx prisma migrate deploy` locally against the same database.
+
+## Set the webhook
+
+Telegram must be told where to send updates. With the **same** `APP_URL` (https), `TELEGRAM_BOT_TOKEN` and `TELEGRAM_WEBHOOK_SECRET` in your local `.env` as in Vercel:
+
+```bash
+npm run webhook:set
+```
+
+This sets the webhook to `APP_URL/api/telegram` (with the secret, only `message` + `callback_query`, pending updates dropped), the bot's menu button **Open** → `APP_URL/app`, and the `/start` `/help` commands, then prints `getWebhookInfo`. Check that `url` is right and `last_error_message` is absent. Re-run it whenever `APP_URL` or the secret changes.
+
+Prove access control on the deployed app: `npm run demo:unauthorized` (or pass a base URL, e.g. `npm run demo:unauthorized -- http://localhost:3000`).
+
 ## Test accounts
 
 The demo uses three Telegram accounts:
@@ -40,5 +59,7 @@ The demo uses three Telegram accounts:
 | C, any other account | Anu Reddy, 8A, roll 2: links **live** with class code `GF8A` (`t.me/<bot>?start=c_GF8A`) | demo |
 
 Each account must send `/start` to the bot once so the bot is allowed to message it.
+
+To try a teacher invite: `t.me/<bot>?start=t_GFSCI8A` (one use; grants Science teacher in 8A).
 
 Also seeded: Mr. Arjun Das (fake account) with a published English assignment in 8B, which the Maths teacher must not see; the expired code `GF8A-OLD`; and a second school, Riverside School (7A), to show cross-school isolation.

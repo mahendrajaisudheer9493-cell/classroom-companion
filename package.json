@@ -16,7 +16,8 @@
     "webhook:set": "tsx scripts/set-webhook.ts",
     "tick": "echo 'tick not implemented yet'",
     "eval": "echo 'eval not implemented yet'",
-    "postinstall": "prisma generate"
+    "postinstall": "prisma generate",
+    "demo:unauthorized": "tsx scripts/demo-unauthorized.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^1.9.0",
