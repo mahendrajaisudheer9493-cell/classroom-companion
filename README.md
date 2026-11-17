@@ -333,14 +333,65 @@ Before the scenario, each phone sends `/start` once.
 
 ### Live scenario
 
-| # | Phone | Do this (exact text) | Expect |
-| --- | --- | --- | --- |
-| 1 | A | Type `Do exercise 4.2 q1 to q8, bring it day after. Those who did the extra sheet last week can skip q8.` → tap **8A** for the class → **8:00 am** for the time → check the preview → **Send** | The preview shows the date two days ahead at 8:00 am and a ⚠ Note with the condition; nothing is sent before **Send**. B gets the card with [Got it] [I'm stuck] [Done] [Open]. Anu isn't linked, so her card waits |
-| 2 | C | Open `t.me/greenfield_classroom_bot?start=c_GF8A` → **Yes** → tap **Anu Reddy** | "You're joining 8A, Greenfield Public School. Correct?" Only unclaimed names are listed (Ravi isn't). After linking, the Ex 4.2 card arrives |
-| 3 | B | Type `stuck on question 5, not understanding the formula` | The bot echoes "Marked as stuck…". A gets a real-time alert with [Reply], replies in the Mini App, and B receives the reply in chat |
-| 4 | — | Leave C untouched for 2 min (demo mode) → A taps **Run reminders now** | C: "did you see it?" with [Got it] [I'm stuck]. B: only "Still stuck on …?" with [Still stuck] [Figured it out], never a submit reminder. The result names both. A second run sends nothing |
-| 5 | A, C | A types `move maths 4.2 to monday morning` → **Confirm**. C taps **Got it** on "Updated", then sends a **photo** → **Yes, submit**. A: triage → To review → **Review** → `show your working` → **Needs revision** | B and C get "Updated: … now due Mon …". Triage shows "hasn't seen the change" until they acknowledge. C gets "Needs revision" with [Resubmit] |
-| 6 | laptop | `npm run demo:unauthorized` | 200 / 403 / 403 / 401 (output below) |
+Follows the brief's six steps. Prepare first: `npm run db:reset`, demo timings in Vercel (`SILENT_AFTER_MINUTES=2`, `BLOCKED_CHECKIN_AFTER_MINUTES=2`, `DEMO_MODE=true`) and redeploy, pause the cron (SQL above) so reminders run when you tap the button, then `/start` on phones A, B and C. Messages from the teacher show the teacher's Telegram name.
+
+**Step 1: a school and class with a teacher and two students, Ravi linked and Anu not.**
+
+| Phone | Do this | Expect |
+| --- | --- | --- |
+| A | Open the Mini App (menu button **Open**) → **My classes → 8A** | Greenfield Public School, 8A: Ravi Kumar "Linked", Anu Reddy "Not linked yet", class link `…?start=c_GF8A` |
+| B | Send `/start` | Ravi is already linked: "Open my work" |
+
+**Step 2: the teacher assigns with a relative deadline, then changes it.**
+
+| Phone | Do this (exact text) | Expect |
+| --- | --- | --- |
+| A | Type `Do exercise 4.2 q1 to q8, bring it day after. Those who did the extra sheet last week can skip q8.` → **8A** → **8:00 am** | Preview: 8A, Maths, due the day after tomorrow at 8:00 am, ⚠ Note "skip q8 if…". Nothing is sent yet |
+| A | Tap **Send** | "Sent to 6 students in 8A (1 on Telegram now; 5 will get it when they join)." B gets the card with [Got it] [I'm stuck] [Done] [Open] |
+| C | Open `t.me/greenfield_classroom_bot?start=c_GF8A` → **Yes** → tap **Anu Reddy** | "You're joining 8A, Greenfield Public School. Correct?" Only unclaimed names (no Ravi). "You're linked as Anu Reddy, 8A." Then **the pending Ex 4.2 card arrives** |
+| A | Type `move maths 4.2 to monday morning` → **Confirm** | Preview "Change Maths · Exercise 4.2… / Due: … → Mon …, 8:00 am" with [Confirm] [Cancel]. B and C get "Updated: Maths · Exercise 4.2… now due Mon … (was …)" with [Got it] [Open] |
+| B | Tap **Got it** on "Updated" | Ravi has acknowledged the new version. **C does nothing from here on** |
+
+**Step 3: Ravi reports progress, then says he is stuck. Anu stays silent.**
+
+| Phone | Do this (exact text) | Expect |
+| --- | --- | --- |
+| B | Type `half done` | "Noted: you're working on Maths · Exercise 4.2… ✓" (IN_PROGRESS) |
+| B | Type `stuck on question 5, not understanding the formula` | "Marked as stuck on … Your teacher has been notified." (BLOCKED) |
+| A | — | Real-time alert: "🆘 Ravi Kumar (8A) is stuck on Maths · Exercise 4.2…: "stuck on question 5, not understanding the formula"" with [Reply] |
+
+**Step 4: the reminder job runs, with different messages for stuck Ravi and silent Anu.**
+
+| Phone | Do this | Expect |
+| --- | --- | --- |
+| A | Wait 2 minutes after Ravi's stuck message, then Mini App home → **Run reminders now** | "Sent: 1 'did you see it?' to Anu Reddy · 1 'still stuck?' to Ravi Kumar · Ravi Kumar is stuck, so no submit reminders · 2 messages delivered." |
+| C | — | A friendly "did you see it?" line naming Ex 4.2 and the due date, with [Got it] [I'm stuck] [Open] |
+| B | — | Only "Still stuck on …?" with [Still stuck] [Figured it out] [Open]. No "due" or "submit" reminder |
+| A | Tap **Run reminders now** again | "No reminders due right now." Nobody gets a second message |
+
+**Step 5: a student submits, the teacher gives feedback, and the Mini App shows the final state.**
+
+| Phone | Do this (exact text) | Expect |
+| --- | --- | --- |
+| C | Send a **photo** of the work → **Yes, submit** (or type `Answers for 4.2: 1) 12 2) 15 3) 42` → **Yes, submit**) | "Submit this for Maths · Exercise 4.2…?" → "Submitted ✓ Maths · Exercise 4.2…. Your teacher will review it." (SUBMITTED) |
+| A | Mini App → **Triage** → 📥 To review → **Review** | Anu's photo shown inline (or her text) |
+| A | Type `All correct, well done` → **✓ Completed** | C gets "… reviewed Maths · Exercise 4.2…: "All correct, well done" ✓ Completed" |
+| A | Triage → tap the assignment name | Final state: Anu **Completed**, Ravi **Stuck** (last reminder "still stuck?"), the others "not on Telegram yet" |
+| C | **Open** → My work | Ex 4.2 under **Done**, with the feedback |
+
+**Step 6: unauthorised and wrong-context actions are rejected.**
+
+| Where | Do this | Expect |
+| --- | --- | --- |
+| Laptop | `npm run demo:unauthorized` | 200 for the teacher's own roster; 403 for Ravi asking for the roster; 403 for the teacher asking for Riverside's class; 401 for tampered initData (output below) |
+| Phone B (in app) | Open `t.me/greenfield_classroom_bot?start=c_GF8A-OLD` | "This class link has expired. Ask your teacher for a new one." Nothing changes |
+| Any phone's browser | Open `https://classroom-companion-delta.vercel.app/app` outside Telegram | "Open this in Telegram": the API refuses requests without Telegram's signed initData (401) |
+
+**Bonus: ask in chat.**
+
+| Phone | Do this (exact text) | Expect |
+| --- | --- | --- |
+| A | Type `who is at risk this week?` | Up to 6 lines from code-computed facts, e.g. "• Sneha Iyer (8A): overdue and silent on Maths · Exercise 4.1" and "• Kiran Patel (8A): …", with [Open triage]. Ravi isn't listed: he has only one warning sign (stuck) |
 
 ### Class teacher and coordinator (phone A, after the scenario)
 
