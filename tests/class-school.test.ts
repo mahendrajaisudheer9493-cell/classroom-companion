@@ -3,7 +3,7 @@ import { canManageSchool, scopeAllowsSubject, studentWorkScope, type AccessUser 
 import { groupLoad, problemSummary, strugglingFrom } from "@/lib/domain/class-views";
 import { riskFrom } from "@/lib/domain/risk";
 import { hasSeen, healthStats, worstOf } from "@/lib/domain/school-health";
-import { parseRoster } from "@/lib/domain/school-setup";
+import { parseRoster, rosterPreview } from "@/lib/domain/roster-parse";
 import type { TriageRow } from "@/lib/domain/triage";
 
 // Class teacher (CT1, CT2), coordinator (C1, C2) and at-risk logic with a fixed clock.
@@ -88,9 +88,30 @@ describe("C2 school health numbers", () => {
   });
 });
 
-describe("C1 setup", () => {
-  it("roster paste: one name per line, blank lines and numbering dropped, order kept", () => {
+describe("C1 setup: roster paste", () => {
+  it("new lines: blank lines and numbering dropped, order kept", () => {
     expect(parseRoster("Asha Gupta\n\n2. Vikram Singh\r\n 3) Meena Rao \n")).toEqual(["Asha Gupta", "Vikram Singh", "Meena Rao"]);
+  });
+
+  it("commas on one line (the 8D bug report), spaces trimmed", () => {
+    expect(parseRoster("Test One, Test Two,Test Three")).toEqual(["Test One", "Test Two", "Test Three"]);
+    expect(parseRoster("  Test   One  ,  ")).toEqual(["Test One"]);
+  });
+
+  it("mixed commas and new lines, empty entries ignored", () => {
+    expect(parseRoster("A One, B Two\n\n,, C Three\n ,\nD Four;E Five")).toEqual(["A One", "B Two", "C Three", "D Four", "E Five"]);
+    expect(parseRoster("\n , \n")).toEqual([]);
+  });
+
+  it("duplicates removed (ignoring case), first spelling kept", () => {
+    expect(parseRoster("Test One\ntest one, TEST ONE\nTest Two")).toEqual(["Test One", "Test Two"]);
+  });
+
+  it("live preview text", () => {
+    expect(rosterPreview(["Test One", "Test Two", "Test Three"])).toBe("3 students: Test One, Test Two, Test Three");
+    expect(rosterPreview(["Solo"])).toBe("1 student: Solo");
+    expect(rosterPreview(Array.from({ length: 10 }, (_, i) => `S${i}`))).toBe("10 students: S0, S1, S2, S3, S4, S5, S6, S7 and 2 more");
+    expect(rosterPreview([])).toMatch(/^No names yet/);
   });
 });
 

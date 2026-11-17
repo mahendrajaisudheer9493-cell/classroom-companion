@@ -3,6 +3,7 @@
 import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { BackNav } from "@/app/app/_components/nav";
+import { RosterPaste, rosterCount } from "@/app/app/_components/roster-paste";
 import { Banner } from "@/app/app/_components/status";
 import { Button, Loading, Notice, Row, Section } from "@/app/app/_components/ui";
 import { apiFetch, confirmDialog, shareInTelegram, type ApiResult } from "@/app/app/_lib/telegram";
@@ -56,6 +57,7 @@ export function SchoolSetup() {
         busy={busy}
         onSetClassTeacher={(classId, userId) => run(() => post(`/api/app/school/classes/${classId}/class-teacher`, { userId }))}
         onCreate={(body) => run(() => post<{ message: string }>("/api/app/school/classes", { schoolId: d.school.id, ...body }))}
+        onAddStudents={(classId, roster) => run(() => post<{ message: string }>(`/api/app/classes/${classId}/students`, { roster }))}
       />
 
       <InviteSection
@@ -107,23 +109,36 @@ function ClassesSection({
   busy,
   onSetClassTeacher,
   onCreate,
+  onAddStudents,
 }: {
   data: SchoolSetupResponse;
   busy: boolean;
   onSetClassTeacher: (classId: string, userId: string) => void;
   onCreate: (body: { name: string; grade: number; roster: string }) => Promise<unknown>;
+  onAddStudents: (classId: string, roster: string) => Promise<unknown>;
 }) {
   const [name, setName] = useState("");
   const [grade, setGrade] = useState("8");
   const [roster, setRoster] = useState("");
-  const count = roster.split("\n").filter((l) => l.trim()).length;
+  const [addingTo, setAddingTo] = useState<string | null>(null);
+  const [addRoster, setAddRoster] = useState("");
+
+  // No <form>: pressing Enter in the name box must not create the class before the roster is pasted.
+  async function create() {
+    const count = rosterCount(roster);
+    if (count === 0 && !(await confirmDialog(`Create ${name.trim()} with no students? You can add them later with "Add students".`))) return;
+    if (await onCreate({ name: name.trim(), grade: Number(grade), roster })) {
+      setName("");
+      setRoster("");
+    }
+  }
 
   return (
     <Section title={`Classes (${data.classes.length})`}>
       {data.classes.map((c) => (
         <div key={c.id} className="space-y-2 border-b border-tg-hint/15 px-4 py-3">
           <p className="font-medium">
-            {c.name} <span className="text-sm font-normal text-tg-hint">· grade {c.grade} · linked {c.linked}/{c.total}</span>
+            {c.name} <span className="text-sm font-normal text-tg-hint">· grade {c.grade} · {c.total} students · linked {c.linked}/{c.total}</span>
           </p>
           {c.link && <p className="break-all font-mono text-xs text-tg-hint">{c.link.url}</p>}
           <label className="flex items-center gap-2 text-sm">
@@ -142,36 +157,62 @@ function ClassesSection({
               ))}
             </select>
           </label>
+          {addingTo === c.id ? (
+            <div className="space-y-2">
+              <RosterPaste value={addRoster} onChange={setAddRoster} label={`Add students to ${c.name} (next roll numbers)`} />
+              <div className="flex gap-2">
+                <Button
+                  disabled={busy || rosterCount(addRoster) === 0}
+                  onClick={async () => {
+                    if (await onAddStudents(c.id, addRoster)) {
+                      setAddRoster("");
+                      setAddingTo(null);
+                    }
+                  }}
+                >
+                  Add {rosterCount(addRoster) || ""} student{rosterCount(addRoster) === 1 ? "" : "s"}
+                </Button>
+                <Button variant="secondary" onClick={() => setAddingTo(null)}>
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <Button
+              variant="secondary"
+              onClick={() => {
+                setAddingTo(c.id);
+                setAddRoster("");
+              }}
+            >
+              + Add students
+            </Button>
+          )}
         </div>
       ))}
-      <form
-        className="space-y-2 px-4 py-3"
-        onSubmit={async (e) => {
-          e.preventDefault();
-          if (await onCreate({ name, grade: Number(grade), roster })) {
-            setName("");
-            setRoster("");
-          }
-        }}
-      >
+      <div className="space-y-2 px-4 py-3">
         <p className="font-medium">+ New class</p>
         <div className="flex gap-2">
-          <input className={input} placeholder="Name, e.g. 8C" value={name} onChange={(e) => setName(e.target.value)} required maxLength={20} />
+          <input
+            className={input}
+            placeholder="Name, e.g. 8C"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && e.preventDefault()}
+            enterKeyHint="next"
+            maxLength={20}
+            aria-label="Class name"
+          />
           <input className={`${input} w-24`} type="number" min={1} max={12} value={grade} onChange={(e) => setGrade(e.target.value)} aria-label="Grade" />
         </div>
-        <textarea
-          className={`${input} min-h-28`}
-          placeholder={"Paste the roster, one name per line\nRoll numbers follow this order"}
-          value={roster}
-          onChange={(e) => setRoster(e.target.value)}
-        />
-        <div className="flex items-center justify-between">
-          <span className="text-xs text-tg-hint">{count} student{count === 1 ? "" : "s"} · a class link is created automatically</span>
-          <button type="submit" disabled={busy || !name.trim()} className="min-h-10 rounded-lg bg-tg-button px-3.5 text-sm font-medium text-tg-button-text disabled:opacity-50">
+        <RosterPaste value={roster} onChange={setRoster} label="Students (roll numbers follow this order)" />
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-xs text-tg-hint">A class link is created automatically.</span>
+          <Button disabled={busy || !name.trim()} onClick={create}>
             Create class
-          </button>
+          </Button>
         </div>
-      </form>
+      </div>
     </Section>
   );
 }

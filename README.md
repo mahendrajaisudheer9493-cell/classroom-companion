@@ -76,8 +76,8 @@ flowchart LR
 | --- | --- | --- |
 | Student | Assignment cards with [Got it] [I'm stuck] [Done] [Open] · reminders · free-text replies · submit by photo, file or text · doubt replies · feedback | My work (overdue / today / this week / later / done) · assignment detail with "what changed" · submit (text, in class, upload) · doubt thread · feedback history |
 | Subject teacher | Create, change and cancel by typing, with a preview to confirm · real-time doubt alerts · 07:30 digest | Triage board with **⚠ At risk this week** · status per student · doubt threads and replies · review and feedback · rosters and class links · [Run reminders now] · "New assignment" form (fallback without the LLM) |
-| Class teacher | — | Class page tabs: **Roster · Load** (every subject's work by due date, ⚠ Heavy day at 3+) **· Struggling** (stuck, silent or overdue in 2+ subjects) · a student's work across all subjects, read-only |
-| Coordinator | Invite messages only | **School health** (per class: open work, % seen, % overdue, stuck, linked; worst class flagged → per subject → names + statuses) · **School setup** (create a class from a pasted roster, invite teachers, set the class teacher, remove roles) |
+| Class teacher | — | Class page tabs: **Roster** (add students by pasting names) **· Load** (every subject's work by due date, ⚠ Heavy day at 3+) **· Struggling** (stuck, silent or overdue in 2+ subjects) · a student's work across all subjects, read-only |
+| Coordinator | Invite messages only | **School health** (per class: open work, % seen, % overdue, stuck, linked; worst class flagged → per subject → names + statuses) · **School setup** (create a class from pasted names, one per line or comma-separated, with a live preview; add students to existing classes; invite teachers; set the class teacher; remove roles) |
 
 **Why this split:** students are 13–14 and often use a shared family phone. A chat message with buttons works on any phone and gets a quick answer. Teachers need to scan 40+ students at once, and a chat list can't do that.
 
@@ -295,7 +295,7 @@ Vercel → Project → **Logs** (or **Deployments → a deployment → Runtime L
 | `feedback.sent` | `lib/domain/teacher-actions.ts` (review feedback and [Checked in class]) |
 | `model.failure` | `lib/llm/client.ts` (timeout, error, invalid output), `lib/llm/phrase.ts` (unsafe reminder text) |
 | `access.denied` | `lib/http.ts`, `lib/auth/request-user.ts`, `lib/bot/bot.ts`, `lib/domain/student-actions.ts`, `lib/domain/acknowledge.ts`, `/api/telegram` (bad secret), `/api/tick` (bad cron secret) |
-| also | `risk.asked`, `tick.done`, `queue.send_failed`, `queue.dead`, `student.status_changed`, `class.created`, `invite.created`, `class_teacher.set`, `membership.removed` |
+| also | `risk.asked`, `roster.updated`, `tick.done`, `queue.send_failed`, `queue.dead`, `student.status_changed`, `class.created`, `invite.created`, `class_teacher.set`, `membership.removed` |
 
 ### Rollback
 
@@ -407,7 +407,7 @@ Mrs. Rao is also class teacher of 8A and coordinator of Greenfield, so the same 
 ## Tests
 
 ```bash
-npm run typecheck && npm run lint && npm test   # 158 tests in 19 files
+npm run typecheck && npm run lint && npm test   # 164 tests in 19 files
 npm run build                                   # production build
 npm run eval                                    # real-model eval (costs a fraction of a cent)
 npm run demo:unauthorized                       # access checks against the deployed app

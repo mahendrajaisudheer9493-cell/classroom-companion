@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { BackNav } from "@/app/app/_components/nav";
+import { RosterPaste, rosterCount } from "@/app/app/_components/roster-paste";
 import { ClassLoad, ClassStruggling, Tabs, type ClassTab } from "@/app/app/classes/[classId]/class-tabs";
 import { Button, Loading, Notice, Row, Section } from "@/app/app/_components/ui";
 import { apiFetch, confirmDialog, shareInTelegram, type ApiResult } from "@/app/app/_lib/telegram";
@@ -20,6 +21,7 @@ export function ClassRoster() {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
   const [tab, setTab] = useState<ClassTab>("roster");
+  const [newNames, setNewNames] = useState("");
 
   const load = useCallback(() => apiFetch<RosterResponse>(`/api/app/classes/${classId}`).then(setRoster), [classId]);
   useEffect(() => {
@@ -54,6 +56,15 @@ export function ClassRoster() {
         () => apiFetch(`/api/app/classes/${classId}/students/${student.id}/unlink`, { method: "POST" }),
         `${student.name} is unlinked.`,
       );
+  }
+
+  async function addStudents() {
+    setBusy(true);
+    const r = await apiFetch<{ message: string }>(`/api/app/classes/${classId}/students`, { method: "POST", body: JSON.stringify({ roster: newNames }) });
+    setNotice(r.ok ? r.data.message : r.message);
+    if (r.ok) setNewNames("");
+    await load();
+    setBusy(false);
   }
 
   async function copy(url: string) {
@@ -131,6 +142,15 @@ export function ClassRoster() {
                 )}
               </Row>
             ))}
+          </Section>
+
+          <Section title="Add students">
+            <div className="space-y-2 px-4 py-3">
+              <RosterPaste value={newNames} onChange={setNewNames} label="New names get the next roll numbers" />
+              <Button onClick={addStudents} disabled={busy || rosterCount(newNames) === 0}>
+                Add {rosterCount(newNames) || ""} student{rosterCount(newNames) === 1 ? "" : "s"}
+              </Button>
+            </div>
           </Section>
         </>
       )}

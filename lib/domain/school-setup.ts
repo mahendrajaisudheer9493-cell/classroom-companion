@@ -1,8 +1,9 @@
 import { z } from "zod";
 import type { InviteDto, SchoolSetupResponse } from "@/app/app/_lib/types";
-import { assertAccess, canManageSchool, type AccessUser } from "@/lib/access";
+import { assertAccess, canManageRoster, canManageSchool, type AccessUser } from "@/lib/access";
 import { isUniqueViolation, prisma } from "@/lib/db";
 import { generateCode, regenerateJoinCode } from "@/lib/domain/linking";
+import { MAX_NAME, parseRoster } from "@/lib/domain/roster-parse";
 import { toClassLink } from "@/lib/domain/roster";
 import { getEnv } from "@/lib/env";
 import { HttpError } from "@/lib/http";
@@ -117,20 +118,12 @@ export const createClassSchema = z.object({
   roster: z.string().max(10_000).default(""),
 });
 
-/** "one name per line" → clean names in order (blank lines dropped). */
-export function parseRoster(text: string): string[] {
-  return text
-    .split(/\r?\n/)
-    .map((l) => l.replace(/^\s*\d+[.)\s-]+/, "").trim()) // tolerate "1. Name" or "1) Name"
-    .filter((l) => l.length > 0);
-}
-
 /** New class + students (roll numbers 1..n in the pasted order) + a class code. */
 export async function createClass(user: Coordinator, input: z.infer<typeof createClassSchema>) {
   assertCoordinator(user, input.schoolId);
   const names = parseRoster(input.roster);
   if (names.length > 100) throw bad("A class can have at most 100 students.");
-  if (names.some((n) => n.length > 80)) throw bad("A name is longer than 80 characters. Put one name per line.");
+  if (names.some((n) => n.length > MAX_NAME)) throw bad(`A name is longer than ${MAX_NAME} characters. Put one name per line or separate names with commas.`);
 
   let klass;
   try {
@@ -225,4 +218,45 @@ export async function setClassTeacher(user: Coordinator, classId: string, teache
     if (!existing) await tx.membership.create({ data: { userId: teacherUserId, schoolId: klass.schoolId, classId, role: "CLASS_TEACHER" } });
   });
   await logEvent("class_teacher.set", { userId: teacherUserId }, { schoolId: klass.schoolId, classId, actorUserId: user.id });
+}
+
+// ───────────────────────────── Add students to an existing class ─────────────────────────────
+
+export const addStudentsSchema = z.object({ roster: z.string().max(10_000) });
+
+/**
+ * Appends pasted names to a class: next roll numbers, names already in the class skipped (ignoring
+ * case). Allowed for the school's coordinator and for subject/class teachers of that class.
+ */
+export async function addStudents(user: Coordinator, classId: string, rosterText: string) {
+  const klass = await prisma.class.findUnique({ where: { id: classId }, include: { students: { select: { name: true, rollNo: true } } } });
+  if (!klass) throw new HttpError(404, { error: "not_found", message: "Class not found." });
+  assertAccess(canManageSchool(user, klass.schoolId) || canManageRoster(user, klass.id), "You can only add students to your own classes.", {
+    schoolId: klass.schoolId,
+    classId: klass.id,
+    actorUserId: user.id,
+  });
+
+  const names = parseRoster(rosterText);
+  if (names.length === 0) throw bad("Paste at least one name: one per line, or separated by commas.");
+  if (names.some((n) => n.length > MAX_NAME)) throw bad(`A name is longer than ${MAX_NAME} characters. Put one name per line or separate names with commas.`);
+  const existing = new Set(klass.students.map((s) => s.name.trim().toLowerCase()));
+  const fresh = names.filter((n) => !existing.has(n.toLowerCase()));
+  const skipped = names.filter((n) => existing.has(n.toLowerCase()));
+  if (klass.students.length + fresh.length > 100) throw bad("A class can have at most 100 students.");
+
+  const lastRoll = Math.max(0, ...klass.students.map((s) => Number.parseInt(s.rollNo, 10)).filter(Number.isFinite));
+  if (fresh.length) {
+    await prisma.student.createMany({
+      data: fresh.map((name, i) => ({ schoolId: klass.schoolId, classId: klass.id, name, rollNo: String(lastRoll + i + 1) })),
+    });
+  }
+  await logEvent("roster.updated", { added: fresh.length, skippedExisting: skipped.length }, {
+    schoolId: klass.schoolId,
+    classId: klass.id,
+    actorUserId: user.id,
+  });
+  const parts = [`Added ${fresh.length} student${fresh.length === 1 ? "" : "s"} to ${klass.name}.`];
+  if (skipped.length) parts.push(`Already in the class: ${skipped.join(", ")}.`);
+  return { added: fresh.length, skipped, firstRollNo: fresh.length ? lastRoll + 1 : null, message: parts.join(" ") };
 }

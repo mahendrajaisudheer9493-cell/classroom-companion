@@ -7,7 +7,8 @@ const { prisma } = await import("@/lib/db");
 const { getEnv } = await import("@/lib/env");
 const { signInitData } = await import("@/lib/auth/init-data");
 const { loadAppUserById } = await import("@/lib/auth/user");
-const { createClass, createInvite, removeMembership, setClassTeacher } = await import("@/lib/domain/school-setup");
+const { addStudents, createClass, createInvite, removeMembership, setClassTeacher } = await import("@/lib/domain/school-setup");
+const studentsRoute = await import("@/app/api/app/classes/[classId]/students/route");
 const schoolRoute = await import("@/app/api/app/school/route");
 const classHealthRoute = await import("@/app/api/app/school/classes/[classId]/route");
 const subjectRoute = await import("@/app/api/app/school/classes/[classId]/subjects/[subject]/route");
@@ -159,6 +160,37 @@ describe.skipIf(!process.env.DATABASE_URL)("class teacher + coordinator (integra
     expect(r.link.url).toMatch(/\?start=c_[A-Z0-9]{6}$/);
     await expect(createClass(await user("coord"), { schoolId: ids.school, name: "9T", grade: 9, roster: "" })).rejects.toMatchObject({ status: 409 });
     await expect(createClass(await user("otherCoord"), { schoolId: ids.school, name: "9Z", grade: 9, roster: "" })).rejects.toThrow(/coordinator/);
+  });
+
+  it("add students to an existing class: roll numbers continue, duplicates and existing names skipped, logged", async () => {
+    const coord = await user("coord");
+    const c = await createClass(coord, { schoolId: ids.school, name: "9R", grade: 9, roster: "Test One, Test Two" });
+    const r = await addStudents(coord, c.classId, "Test Three\ntest one, Test Four, Test Four\n\n");
+    expect(r).toMatchObject({ added: 2, skipped: ["test one"], firstRollNo: 3 });
+    const students = await prisma.student.findMany({ where: { classId: c.classId } });
+    expect(students.map((s) => [s.rollNo, s.name]).sort((a, b) => Number(a[0]) - Number(b[0]))).toEqual([
+      ["1", "Test One"], ["2", "Test Two"], ["3", "Test Three"], ["4", "Test Four"],
+    ]);
+    expect(await prisma.activityEvent.count({ where: { type: "roster.updated", classId: c.classId } })).toBe(1);
+    await expect(addStudents(coord, c.classId, " , \n")).rejects.toMatchObject({ status: 400 });
+  });
+
+  it("add students: a teacher of the class may; another school's coordinator and a student get 403", async () => {
+    const post = (tg: bigint, roster: string) =>
+      studentsRoute.POST(
+        new Request(`http://test/api/app/classes/${ids.klass}/students`, {
+          method: "POST",
+          headers: { ...auth(tg), "Content-Type": "application/json" },
+          body: JSON.stringify({ roster }),
+        }),
+        ctx({ classId: ids.klass }),
+      );
+    const ok = await post(TG.maths, "Zoya Khan");
+    expect(ok.status).toBe(200);
+    expect(await ok.json()).toMatchObject({ added: 1, firstRollNo: 3 }); // 9S had Ravi (1) and Anu (2)
+    expect((await post(TG.otherCoord, "Intruder")).status).toBe(403);
+    expect((await post(TG.ravi, "Intruder")).status).toBe(403);
+    expect(await prisma.student.count({ where: { classId: ids.klass, name: "Intruder" } })).toBe(0);
   });
 
   it("setup: one-use invite valid 7 days with the chosen grants; classes from another school refused", async () => {
