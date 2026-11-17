@@ -6,7 +6,7 @@ import { MyWork } from "@/app/app/_components/my-work";
 import { Banner } from "@/app/app/_components/status";
 import { Button, Loading, Notice, Row, Section } from "@/app/app/_components/ui";
 import { apiFetch, type ApiResult } from "@/app/app/_lib/telegram";
-import type { DigestResponse, MeResponse, TickResponse, TriageResponse } from "@/app/app/_lib/types";
+import type { DigestResponse, MeResponse, SchoolHealthResponse, TickResponse, TriageResponse } from "@/app/app/_lib/types";
 
 // /app: role-aware home. One section per role the person has.
 export default function HomePage() {
@@ -50,14 +50,7 @@ export default function HomePage() {
       {student && <MyWork />}
 
       {coordinatorOf.map((s) => (
-        <Section key={s.schoolId} title="School health">
-          <Row>
-            <div>
-              <p className="font-medium">{s.schoolName}</p>
-              <p className="text-sm text-tg-hint">Class-by-class progress will appear here.</p>
-            </div>
-          </Row>
-        </Section>
+        <SchoolHealthCard key={s.schoolId} schoolId={s.schoolId} schoolName={s.schoolName} />
       ))}
     </>
   );
@@ -124,5 +117,31 @@ function TeacherToday() {
       {tick && <Banner>{tick}</Banner>}
       <div className="mb-3" />
     </>
+  );
+}
+
+/** Coordinator: the worst class at a glance; opens /app/school. */
+function SchoolHealthCard({ schoolId, schoolName }: { schoolId: string; schoolName: string }) {
+  const [health, setHealth] = useState<ApiResult<SchoolHealthResponse> | null>(null);
+  useEffect(() => {
+    apiFetch<SchoolHealthResponse>(`/api/app/school?schoolId=${schoolId}`).then(setHealth);
+  }, [schoolId]);
+  const worst = health?.ok ? health.data.classes.find((c) => c.id === health.data.worstClassId) : undefined;
+  return (
+    <Link href={`/app/school?schoolId=${schoolId}`} className="mb-6 block rounded-xl bg-tg-secondary-bg px-4 py-4 active:opacity-70">
+      <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-tg-hint">School health · {schoolName}</p>
+      {!health ? (
+        <p className="text-tg-hint">Loading…</p>
+      ) : !health.ok ? (
+        <p className="text-tg-hint">Couldn&apos;t load school health.</p>
+      ) : worst ? (
+        <p className="text-lg font-semibold">
+          ⚠ {worst.name} is falling behind: {worst.stats.overduePct ?? 0}% overdue · {worst.stats.stuck} stuck
+        </p>
+      ) : (
+        <p className="text-lg font-semibold">No class is falling behind ✓</p>
+      )}
+      <p className="mt-1 text-sm text-tg-link">Open school health ›</p>
+    </Link>
   );
 }
