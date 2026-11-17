@@ -89,11 +89,56 @@ export type DoubtThreadResponse = {
   messages: { id: string; from: "STUDENT" | "TEACHER"; author: string; text: string; at: string }[];
 };
 
-export type AssignmentOverviewResponse = {
-  assignment: string;
+export type TriageFlagName = "hasnt_seen_change" | "not_on_telegram" | "unanswered_question" | "overdue";
+
+export type TriageItemDto = {
+  saId: string;
+  assignmentId: string;
+  studentName: string;
   className: string;
-  dueLabel: string;
+  assignment: string;
   status: string;
-  counts: Record<string, number>;
-  total: number;
+  dueLabel: string;
+  flags: TriageFlagName[];
+  lastActivityAt: string | null;
+  since: string | null;
 };
+
+export type TriageResponse = {
+  classes: { id: string; name: string }[];
+  counts: { stuck: number; silent: number; overdue: number; toReview: number };
+  stuck: TriageItemDto[];
+  silent: TriageItemDto[];
+  overdue: TriageItemDto[];
+  toReview: TriageItemDto[];
+};
+
+export type AssignmentDetailResponse = {
+  id: string;
+  subject: string;
+  title: string;
+  className: string;
+  instructions: string;
+  notes: string | null;
+  dueLabel: string;
+  dueDate: string; // YYYY-MM-DD IST
+  dueTime: string; // HH:mm IST
+  version: number;
+  status: string;
+  canManage: boolean;
+  /** coordinator: names + statuses only */
+  statusOnly: boolean;
+  counts: Record<string, number>;
+  students: {
+    saId: string;
+    name: string;
+    rollNo: string;
+    status: string;
+    flags: TriageFlagName[];
+    hasSubmission: boolean;
+  }[];
+};
+
+export type TickResponse = { ok: true; ms: number; queue: { sent: number; failed: number; dead: number; deferred: number }; reminders: unknown; digest: unknown } | { skipped: true };
+
+export type NudgeResponse = { nudged: number; alreadyToday: number; notOnTelegram: number; skipped: number; deliverAt: string | null; message: string };

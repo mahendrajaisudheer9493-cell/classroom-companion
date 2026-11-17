@@ -28,15 +28,15 @@ export function Button({
 }) {
   const styles = {
     primary: "bg-tg-button text-tg-button-text",
-    secondary: "bg-tg-bg text-tg-link",
-    danger: "bg-tg-bg text-tg-destructive",
+    secondary: "border border-tg-hint/25 bg-tg-bg text-tg-link",
+    danger: "border border-tg-hint/25 bg-tg-bg text-tg-destructive",
   }[variant];
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className={`rounded-lg px-3 py-2 text-sm font-medium active:opacity-70 disabled:opacity-50 ${styles}`}
+      className={`min-h-10 rounded-lg px-3.5 py-2 text-sm font-medium active:opacity-70 disabled:opacity-50 ${styles}`}
     >
       {children}
     </button>

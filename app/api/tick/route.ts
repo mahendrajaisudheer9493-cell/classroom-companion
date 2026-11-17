@@ -1,5 +1,5 @@
 import { safeEqual } from "@/lib/auth/init-data";
-import { acquireLease, releaseLease, runTick } from "@/lib/domain/tick";
+import { runTickWithLease } from "@/lib/domain/tick";
 import { getEnv } from "@/lib/env";
 import { logEvent } from "@/lib/log";
 
@@ -12,19 +12,13 @@ export async function POST(request: Request) {
     await logEvent("access.denied", { reason: "bad_cron_secret", path: "/api/tick" });
     return Response.json({ error: "unauthorized" }, { status: 401 });
   }
-
-  if (!(await acquireLease("tick", 55))) return Response.json({ skipped: true, reason: "another tick is running" });
-
-  const started = Date.now();
   try {
-    const summary = await runTick();
-    const result = { ok: true, ms: Date.now() - started, ...summary };
-    await logEvent("tick.done", result);
+    const result = await runTickWithLease();
+    if ("skipped" in result) return Response.json({ skipped: true, reason: "another tick is running" });
+    await logEvent("tick.done", { ...result, source: "cron" });
     return Response.json(result);
   } catch (err) {
     await logEvent("tick.error", { error: err });
     return Response.json({ ok: false, error: "tick failed" }, { status: 500 });
-  } finally {
-    await releaseLease("tick");
   }
 }

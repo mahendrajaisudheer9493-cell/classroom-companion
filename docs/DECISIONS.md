@@ -43,3 +43,8 @@ Changes to or clarifications of docs/DESIGN.md. One line each: date · decision 
 - 2026-11-17 · Alert dedupe keys: `doubt:<doubtMessageId>`, `stuck:<saId>:<blockedAt>`, `still:<saId>:<blockedAt>` (per teacher) · one alert per doubt and per blocked episode, even on double taps or retries.
 - 2026-11-17 · Direct student buttons (stk/don/inc/sst/fig/ist/prg) carry the StudentAssignment id and re-check status, so repeats are no-ops; stateful ones (confirm, which, ask, skip, file) use a one-time PendingAction → "This option has expired." on reuse.
 - 2026-11-17 · A repeated "bringing it to class" or identical typed text is treated like a duplicate file: "Already received ✓", no new Submission · a double tap never creates two submissions.
+- 2026-11-17 · Silent also lists students who haven't seen a change and students not on Telegram yet, each with a tag · both mean "this student doesn't know"; the teacher acts on them the same way (nudge / talk in class).
+- 2026-11-17 · [Mark resolved] is offered only for BLOCKED students; an unanswered question leaves the Stuck list when the teacher replies · resolving a question without answering it would hide it.
+- 2026-11-17 · [Run reminders now] and the cron share `runTickWithLease()` · same code path and the same lease, so pressing it during a cron tick never double-sends.
+- 2026-11-17 · Nudge dedupeKey `nudge:<saId>:<IST date>`; submitted/completed/unlinked students are skipped and counted · at most one nudge per student per assignment per day.
+- 2026-11-17 · The Telegram BackButton is used inside Telegram; a plain "‹ Back" link appears only in a normal browser · native navigation without a duplicate on-screen control.

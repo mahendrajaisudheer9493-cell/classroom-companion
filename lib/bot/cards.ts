@@ -77,3 +77,59 @@ export function draftPreview(
 export function dueChangeLine(oldDueAt: Date, newDueAt: Date | DateTime) {
   return `Due: ${formatIst(oldDueAt)} → ${formatIst(newDueAt)}`;
 }
+
+// ───────────────────── Messages from the teacher (via the Mini App) ─────────────────────
+
+const studentButtons = (saId: string, first: [string, string]) =>
+  new InlineKeyboard().text(first[0], first[1]).webApp("Open", appUrl(`/app/work/${saId}`));
+
+/** [Nudge]: "Your teacher is checking on Maths 4.2 · due Thu 8:00 am. [Got it] [I'm stuck]" */
+export function nudgeCard(a: CardAssignment, saId: string): OutboundPayload {
+  const kb = new InlineKeyboard().text("Got it", callbackData(CB.ack, saId)).text("I'm stuck", callbackData(CB.stuck, saId));
+  return {
+    text: `Your teacher is checking on ${assignmentLabel(a)} · due ${formatIst(a.dueAt)}.`,
+    reply_markup: markup(kb),
+    meta: { assignmentId: a.id, studentAssignmentId: saId },
+  };
+}
+
+/** Teacher marked the doubt resolved: "… Still stuck? [I'm still stuck]" */
+export function resolvedCard(a: CardAssignment, saId: string): OutboundPayload {
+  return {
+    text: `Your teacher marked your doubt on ${assignmentLabel(a)} as resolved. Still stuck?`,
+    reply_markup: markup(studentButtons(saId, ["I'm still stuck", callbackData(CB.stuckAgain, saId)])),
+    meta: { assignmentId: a.id, studentAssignmentId: saId },
+  };
+}
+
+/** "Mrs. Rao replied about Maths 4.2: … [I'm still stuck] [Open]" */
+export function replyCard(a: CardAssignment, saId: string, teacherName: string, text: string, doubtMessageId: string): OutboundPayload {
+  return {
+    text: `${teacherName} replied about ${assignmentLabel(a)}:\n${text}`,
+    reply_markup: markup(studentButtons(saId, ["I'm still stuck", callbackData(CB.stuckAgain, saId)])),
+    meta: { assignmentId: a.id, studentAssignmentId: saId, doubtMessageId },
+  };
+}
+
+/** Review result: Completed, or Needs revision + [Resubmit] (works like [Done]). */
+export function feedbackCard(
+  a: CardAssignment,
+  saId: string,
+  teacherName: string,
+  result: "COMPLETED" | "NEEDS_REVISION",
+  comment: string,
+): OutboundPayload {
+  const quoted = comment.trim() ? `: "${comment.trim()}"` : "";
+  if (result === "COMPLETED") {
+    return {
+      text: `${teacherName} reviewed ${assignmentLabel(a)}${quoted} ✓ Completed`,
+      reply_markup: markup(new InlineKeyboard().webApp("Open", appUrl(`/app/work/${saId}`))),
+      meta: { assignmentId: a.id, studentAssignmentId: saId },
+    };
+  }
+  return {
+    text: `${teacherName} reviewed ${assignmentLabel(a)}. Needs revision${quoted}`,
+    reply_markup: markup(studentButtons(saId, ["Resubmit", callbackData(CB.done, saId)])),
+    meta: { assignmentId: a.id, studentAssignmentId: saId },
+  };
+}

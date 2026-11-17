@@ -33,3 +33,15 @@ export async function runTick(): Promise<TickSummary> {
     digest: "not implemented yet (Task 6)",
   };
 }
+
+/** runTick under the "tick" lease: shared by POST /api/tick (cron) and [Run reminders now]. */
+export async function runTickWithLease(): Promise<({ ok: true; ms: number } & TickSummary) | { skipped: true }> {
+  if (!(await acquireLease("tick", 55))) return { skipped: true };
+  const started = Date.now();
+  try {
+    const summary = await runTick();
+    return { ok: true, ms: Date.now() - started, ...summary };
+  } finally {
+    await releaseLease("tick");
+  }
+}
