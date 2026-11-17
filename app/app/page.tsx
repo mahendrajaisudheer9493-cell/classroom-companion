@@ -6,7 +6,7 @@ import { MyWork } from "@/app/app/_components/my-work";
 import { Banner } from "@/app/app/_components/status";
 import { Button, Loading, Notice, Row, Section } from "@/app/app/_components/ui";
 import { apiFetch, type ApiResult } from "@/app/app/_lib/telegram";
-import type { MeResponse, TickResponse, TriageResponse } from "@/app/app/_lib/types";
+import type { DigestResponse, MeResponse, TickResponse, TriageResponse } from "@/app/app/_lib/types";
 
 // /app: role-aware home. One section per role the person has.
 export default function HomePage() {
@@ -81,6 +81,13 @@ function TeacherToday() {
     setTick(r.data.message);
   }
 
+  async function sendDigest() {
+    setRunning(true);
+    const r = await apiFetch<DigestResponse>("/api/app/digest", { method: "POST" });
+    setRunning(false);
+    setTick(r.ok ? r.data.message : r.message);
+  }
+
   const c = triage?.ok ? triage.data.counts : null;
   const total = c ? c.stuck + c.silent + c.overdue + c.toReview : 0;
   return (
@@ -108,6 +115,11 @@ function TeacherToday() {
         <Button variant="secondary" onClick={runReminders} disabled={running}>
           {running ? "Running…" : "Run reminders now"}
         </Button>
+      </div>
+      <div className="mb-3 text-right">
+        <button type="button" onClick={sendDigest} disabled={running} className="text-sm text-tg-link active:opacity-70 disabled:opacity-50">
+          Send my digest now (demo)
+        </button>
       </div>
       {tick && <Banner>{tick}</Banner>}
       <div className="mb-3" />

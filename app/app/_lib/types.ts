@@ -216,3 +216,9 @@ export type WorkDetailResponse = {
   feedback: FeedbackDto[];
   doubtCount: number;
 };
+
+export type DigestResponse = {
+  sent: boolean;
+  counts: { stuck: number; silent: number; overdue: number; toReview: number; hasntSeenChange: number };
+  message: string;
+};
