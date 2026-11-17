@@ -4,3 +4,13 @@ node_modules
 .next
 *.pdf
 .DS_Store
+
+# Next.js / tooling (from create-next-app)
+/coverage
+/out/
+/build
+*.pem
+*.tsbuildinfo
+next-env.d.ts
+.vercel
+npm-debug.log*

@@ -1,0 +1,396 @@
+// Classroom Companion data model. Source of truth: docs/DESIGN.md §1.
+// School is the tenant boundary. Per-student status lives on StudentAssignment.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL") // pooled (pgbouncer, :6543), used at runtime
+  directUrl = env("DIRECT_URL") // direct (:5432), used by migrations
+}
+
+// ───────────────────────────── Enums ─────────────────────────────
+
+enum Role {
+  SUBJECT_TEACHER
+  CLASS_TEACHER
+  COORDINATOR
+}
+
+enum AssignmentStatus {
+  DRAFT
+  PUBLISHED
+  CANCELLED
+}
+
+enum StudentAssignmentStatus {
+  ASSIGNED
+  ACKNOWLEDGED
+  IN_PROGRESS
+  BLOCKED
+  SUBMITTED
+  NEEDS_REVISION
+  COMPLETED
+}
+
+enum SubmissionKind {
+  TEXT
+  PHOTO
+  FILE
+  IN_CLASS
+}
+
+enum FeedbackResult {
+  COMPLETED
+  NEEDS_REVISION
+}
+
+enum DoubtAuthorRole {
+  STUDENT
+  TEACHER
+}
+
+enum OutboundStatus {
+  PENDING
+  SENT
+  FAILED
+  DEAD // gave up after max attempts
+}
+
+// ──────────────────────── School structure ────────────────────────
+
+model School {
+  id        String   @id @default(cuid())
+  name      String
+  timezone  String   @default("Asia/Kolkata")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  classes        Class[]
+  students       Student[]
+  memberships    Membership[]
+  teacherInvites TeacherInvite[]
+  assignments    Assignment[]
+  activityEvents ActivityEvent[]
+}
+
+model Class {
+  id        String   @id @default(cuid())
+  schoolId  String
+  name      String // e.g. "8A"
+  grade     Int
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  school         School          @relation(fields: [schoolId], references: [id])
+  joinCodes      JoinCode[]
+  students       Student[]
+  memberships    Membership[]
+  assignments    Assignment[]
+  activityEvents ActivityEvent[]
+
+  @@unique([schoolId, name])
+}
+
+/// One per class; students join via t.me/<bot>?start=c_<code>. Regenerate = revoke + create.
+model JoinCode {
+  id        String    @id @default(cuid())
+  classId   String
+  code      String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  class Class @relation(fields: [classId], references: [id])
+
+  @@index([classId])
+}
+
+// ─────────────────────────── People ───────────────────────────
+
+/// A Telegram account. Never the student's identity by itself (shared phones).
+model User {
+  id               String   @id @default(cuid())
+  telegramId       BigInt   @unique
+  telegramUsername String?
+  displayName      String
+  chatId           BigInt? // private chat id; null until the user has started the bot
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  student            Student? // pilot: one account = one student
+  memberships        Membership[]
+  usedInvites        TeacherInvite[]   @relation("InviteUsedBy")
+  createdAssignments Assignment[]      @relation("AssignmentCreatedBy")
+  feedbackGiven      Feedback[]
+  doubtMessages      DoubtMessage[]
+  activityEvents     ActivityEvent[]
+  outboundMessages   OutboundMessage[] @relation("OutboundRecipient")
+  pendingActions     PendingAction[]
+}
+
+/// Roster entry. Exists before the student links a Telegram account.
+model Student {
+  id        String    @id @default(cuid())
+  schoolId  String
+  classId   String
+  name      String
+  rollNo    String
+  userId    String?   @unique
+  linkedAt  DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  school             School              @relation(fields: [schoolId], references: [id])
+  class              Class               @relation(fields: [classId], references: [id])
+  user               User?               @relation(fields: [userId], references: [id])
+  studentAssignments StudentAssignment[]
+
+  @@unique([classId, rollNo])
+  @@index([schoolId])
+}
+
+/// Roles live here, so one person can teach Maths in 8A and 8B, be class teacher of 8A and coordinator.
+/// SUBJECT_TEACHER: classId + subject. CLASS_TEACHER: classId. COORDINATOR: school-wide (classId null).
+model Membership {
+  id        String   @id @default(cuid())
+  userId    String
+  schoolId  String
+  classId   String?
+  role      Role
+  subject   String?
+  createdAt DateTime @default(now())
+
+  user   User   @relation(fields: [userId], references: [id])
+  school School @relation(fields: [schoolId], references: [id])
+  class  Class? @relation(fields: [classId], references: [id])
+
+  @@unique([userId, schoolId, classId, role, subject])
+  @@index([schoolId])
+  @@index([classId])
+}
+
+/// One-use, expiring. t.me/<bot>?start=t_<code>.
+model TeacherInvite {
+  id           String    @id @default(cuid())
+  schoolId     String
+  code         String    @unique
+  /// [{ classId: string | null, role: Role, subject: string | null }]
+  grants       Json
+  expiresAt    DateTime
+  usedAt       DateTime?
+  usedByUserId String?
+  createdAt    DateTime  @default(now())
+
+  school     School @relation(fields: [schoolId], references: [id])
+  usedByUser User?  @relation("InviteUsedBy", fields: [usedByUserId], references: [id])
+}
+
+// ─────────────────────────── Work ───────────────────────────
+
+model Assignment {
+  id              String           @id @default(cuid())
+  schoolId        String
+  classId         String
+  subject         String
+  createdByUserId String
+  title           String
+  instructions    String
+  notes           String?
+  dueAt           DateTime
+  status          AssignmentStatus @default(DRAFT)
+  /// Bumped on every change to deadline/instructions; students must re-acknowledge.
+  version         Int              @default(1)
+  /// false = only the students with a StudentAssignment row (selected-student targeting).
+  targetAll       Boolean          @default(true)
+  /// Teacher's original message, when created by typing.
+  sourceText      String?
+  publishedAt     DateTime?
+  cancelledAt     DateTime?
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  school             School              @relation(fields: [schoolId], references: [id])
+  class              Class               @relation(fields: [classId], references: [id])
+  createdBy          User                @relation("AssignmentCreatedBy", fields: [createdByUserId], references: [id])
+  studentAssignments StudentAssignment[]
+  activityEvents     ActivityEvent[]
+
+  @@index([classId, subject, status])
+  @@index([schoolId, status, dueAt])
+}
+
+/// One per targeted student. The per-student status lives here; change it only via lib/domain/state-machine.ts.
+model StudentAssignment {
+  id                    String                  @id @default(cuid())
+  assignmentId          String
+  studentId             String
+  status                StudentAssignmentStatus @default(ASSIGNED)
+  /// Assignment.version the student last acknowledged; != version → "hasn't seen the change".
+  ackedVersion          Int?
+  deliveredAt           DateTime?
+  lastStudentActivityAt DateTime?
+  blockedAt             DateTime?
+  createdAt             DateTime                @default(now())
+  updatedAt             DateTime                @updatedAt
+
+  assignment     Assignment      @relation(fields: [assignmentId], references: [id])
+  student        Student         @relation(fields: [studentId], references: [id])
+  submissions    Submission[]
+  feedback       Feedback[]
+  doubtMessages  DoubtMessage[]
+  activityEvents ActivityEvent[]
+  remindersFired ReminderFired[]
+
+  @@unique([assignmentId, studentId])
+  @@index([studentId, status])
+  @@index([status])
+}
+
+/// Files stay in Telegram: we store file_id, never the file. Latest submission counts.
+model Submission {
+  id                   String         @id @default(cuid())
+  studentAssignmentId  String
+  kind                 SubmissionKind
+  text                 String?
+  telegramFileId       String?
+  telegramFileUniqueId String?
+  fileName             String?
+  mimeType             String?
+  createdAt            DateTime       @default(now())
+
+  studentAssignment StudentAssignment @relation(fields: [studentAssignmentId], references: [id])
+  feedback          Feedback[]
+
+  @@index([studentAssignmentId, createdAt])
+}
+
+model Feedback {
+  id                  String         @id @default(cuid())
+  studentAssignmentId String
+  submissionId        String?
+  teacherUserId       String
+  comment             String
+  result              FeedbackResult
+  createdAt           DateTime       @default(now())
+
+  studentAssignment StudentAssignment @relation(fields: [studentAssignmentId], references: [id])
+  submission        Submission?       @relation(fields: [submissionId], references: [id])
+  teacher           User              @relation(fields: [teacherUserId], references: [id])
+
+  @@index([studentAssignmentId, createdAt])
+}
+
+/// Private 1:1 doubt thread between a student and the subject teacher, per student-assignment.
+model DoubtMessage {
+  id                  String          @id @default(cuid())
+  studentAssignmentId String
+  authorUserId        String
+  authorRole          DoubtAuthorRole
+  text                String
+  /// When the message reached the other side's chat (teacher replies to students wait for quiet hours).
+  deliveredAt         DateTime?
+  createdAt           DateTime        @default(now())
+
+  studentAssignment StudentAssignment @relation(fields: [studentAssignmentId], references: [id])
+  author            User              @relation(fields: [authorUserId], references: [id])
+
+  @@index([studentAssignmentId, createdAt])
+}
+
+/// Append-only log of every interaction. Triage, digest and logs read from it.
+/// type: e.g. assignment.created, reminder.sent, submission.received, feedback.sent, model.failure, access.denied
+model ActivityEvent {
+  id                  String   @id @default(cuid())
+  schoolId            String
+  classId             String?
+  assignmentId        String?
+  studentAssignmentId String?
+  actorUserId         String?
+  type                String
+  data                Json
+  createdAt           DateTime @default(now())
+
+  school            School             @relation(fields: [schoolId], references: [id])
+  class             Class?             @relation(fields: [classId], references: [id])
+  assignment        Assignment?        @relation(fields: [assignmentId], references: [id])
+  studentAssignment StudentAssignment? @relation(fields: [studentAssignmentId], references: [id])
+  actor             User?              @relation(fields: [actorUserId], references: [id])
+
+  @@index([schoolId, createdAt])
+  @@index([type, createdAt])
+  @@index([studentAssignmentId, createdAt])
+}
+
+// ─────────────────────── System tables ───────────────────────
+
+/// Every notification goes through this queue (quiet hours, retries with backoff, restart-safe).
+model OutboundMessage {
+  id              String         @id @default(cuid())
+  chatId          BigInt
+  recipientUserId String?
+  /// true → student quiet hours (21:00-07:00 IST) apply.
+  toStudent       Boolean
+  /// e.g. "assignment.new", "reminder", "doubt.alert", "doubt.reply", "feedback", "digest"
+  kind            String
+  /// What to send: { text, replyMarkup?, ... } as passed to the Telegram Bot API.
+  payload         Json
+  /// Not sent before this time (quiet hours push it to 07:00 IST; also used for retry backoff).
+  sendAfter       DateTime
+  status          OutboundStatus @default(PENDING)
+  attempts        Int            @default(0)
+  lastError       String?
+  /// Unique per logical message, e.g. "assign:<saId>:v<version>"; makes enqueueing idempotent.
+  dedupeKey       String         @unique
+  sentAt          DateTime?
+  createdAt       DateTime       @default(now())
+
+  recipient User? @relation("OutboundRecipient", fields: [recipientUserId], references: [id])
+
+  @@index([status, sendAfter])
+}
+
+/// Telegram update_id dedupe: insert first, skip the update on conflict.
+model ProcessedUpdate {
+  updateId   BigInt   @id
+  receivedAt DateTime @default(now())
+}
+
+/// Server-side state for confirm flows (preview → [Send]) and anything too big for 64-byte callback_data.
+model PendingAction {
+  id         String    @id @default(cuid())
+  userId     String
+  /// e.g. "assignment.create", "assignment.change", "assignment.cancel", "submission.confirm"
+  kind       String
+  payload    Json
+  expiresAt  DateTime
+  /// Set atomically when executed, so a double tap acts once.
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId, createdAt])
+}
+
+/// A reminder that has fired. key makes it fire once, e.g. "silent:<saId>", "blocked:<saId>:<blockedAt>".
+model ReminderFired {
+  id                  String   @id @default(cuid())
+  key                 String   @unique
+  studentAssignmentId String
+  /// "silent" | "due_soon" | "blocked_checkin" | "overdue"
+  kind                String
+  firedAt             DateTime @default(now())
+
+  studentAssignment StudentAssignment @relation(fields: [studentAssignmentId], references: [id])
+
+  @@index([studentAssignmentId])
+}
+
+/// Prevents overlapping /api/tick runs (cron + [Run reminders now]).
+model JobLease {
+  name        String   @id
+  lockedUntil DateTime
+}
