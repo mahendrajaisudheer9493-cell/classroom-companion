@@ -78,8 +78,7 @@ function TeacherToday() {
     setRunning(false);
     if (!r.ok) return setTick(r.message);
     if ("skipped" in r.data) return setTick("Reminders are already running. Try again in a minute.");
-    const q = r.data.queue;
-    setTick(`Done in ${r.data.ms} ms · sent ${q.sent} message${q.sent === 1 ? "" : "s"}${q.deferred ? ` · ${q.deferred} waiting for 7:00 am` : ""}${q.failed ? ` · ${q.failed} to retry` : ""}.`);
+    setTick(r.data.message);
   }
 
   const c = triage?.ok ? triage.data.counts : null;

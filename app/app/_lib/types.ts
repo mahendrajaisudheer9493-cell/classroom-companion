@@ -113,10 +113,22 @@ export type AssignmentDetailResponse = {
     status: string;
     flags: TriageFlagName[];
     hasSubmission: boolean;
+    /** latest reminder fired for this student (full viewers only) */
+    lastReminder: { kind: string; at: string } | null;
   }[];
 };
 
-export type TickResponse = { ok: true; ms: number; queue: { sent: number; failed: number; dead: number; deferred: number }; reminders: unknown; digest: unknown } | { skipped: true };
+export type TickResponse =
+  | {
+      ok: true;
+      ms: number;
+      reminders: { silent: number; due_soon: number; blocked_checkin: number; overdue: number; skippedBlocked: number };
+      digests: number;
+      queue: { sent: number; failed: number; dead: number; deferred: number };
+      /** plain words, e.g. "Sent: 1 'did you see it?' to Anu · …" */
+      message: string;
+    }
+  | { skipped: true };
 
 export type NudgeResponse = { nudged: number; alreadyToday: number; notOnTelegram: number; skipped: number; deliverAt: string | null; message: string };
 

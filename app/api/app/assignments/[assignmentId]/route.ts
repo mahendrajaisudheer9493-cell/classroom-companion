@@ -20,6 +20,7 @@ export const GET = apiHandler(async (request, ctx: RouteContext<"/api/app/assign
           student: true,
           submissions: { select: { id: true }, take: 1 },
           doubtMessages: { select: { authorRole: true, createdAt: true } },
+          remindersFired: { select: { kind: true, firedAt: true }, orderBy: { firedAt: "desc" }, take: 1 },
         },
       },
     },
@@ -67,6 +68,8 @@ export const GET = apiHandler(async (request, ctx: RouteContext<"/api/app/assign
         status: sa.status,
         flags: full ? flagsFor(row, now) : [],
         hasSubmission: full && sa.submissions.length > 0,
+        lastReminder:
+          full && sa.remindersFired[0] ? { kind: sa.remindersFired[0].kind, at: sa.remindersFired[0].firedAt.toISOString() } : null,
       };
     })
     .sort((x, y) => x.rollNo.localeCompare(y.rollNo, undefined, { numeric: true }));

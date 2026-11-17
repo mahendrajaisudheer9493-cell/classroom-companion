@@ -50,11 +50,33 @@ Prove access control on the deployed app: `npm run demo:unauthorized` (or pass a
 
 ## Scheduler (tick)
 
-`POST /api/tick` (header `Authorization: Bearer <CRON_SECRET>`) sends due queued messages; reminders and the digest will run here too. Run it by hand with `npm run tick` (or `npm run tick -- http://localhost:3000`).
+`POST /api/tick` (header `Authorization: Bearer <CRON_SECRET>`) runs, in order: student reminders → teacher morning digest → send due queued messages. Teachers can run the same code from the Mini App with **Run reminders now**. Run it by hand with `npm run tick` (or `npm run tick -- http://localhost:3000`).
 
 In production Supabase calls it every minute: open **Supabase → SQL Editor**, paste [scripts/supabase-cron.sql](scripts/supabase-cron.sql), replace `<APP_URL>` and `<CRON_SECRET>`, run. The file also has the queries to check runs and to unschedule.
 
 Set `QUIET_HOURS_ENABLED=false` to test student messages between 21:00 and 07:00 IST.
+
+### Demo mode
+
+Pilot timings are hours apart. For a live demo, set these in Vercel (Settings → Environment Variables) and redeploy:
+
+| Variable | Demo | Pilot |
+| --- | --- | --- |
+| `SILENT_AFTER_MINUTES` | `2` | `720` |
+| `BLOCKED_CHECKIN_AFTER_MINUTES` | `2` | unset (07:00 IST next morning) |
+| `DEMO_MODE` | `true` ("was due" 5 min after the deadline) | `false` (07:00 IST next day) |
+
+Reminder rules (each fires once, recorded in `ReminderFired`; nothing to students 21:00–07:00 IST):
+
+| Student | Reminder | When |
+| --- | --- | --- |
+| ASSIGNED, no activity | "Did you see …?" [Got it] [I'm stuck] | `SILENT_AFTER_MINUTES` after delivery |
+| ACKNOWLEDGED / IN_PROGRESS | "… is due tomorrow at …" [Done] [I'm stuck] | from `DUE_SOON_HOUR` (18:00) the day before |
+| BLOCKED | only "Still stuck on …?" [Still stuck] [Figured it out] | 07:00 next morning (or `BLOCKED_CHECKIN_AFTER_MINUTES`) |
+| not handed in after the deadline | "… was due …" [Submit now] [Bringing it today] [I'm stuck] | 07:00 the day after (5 min in demo mode) |
+| SUBMITTED / COMPLETED / NEEDS_REVISION | nothing | |
+
+Several reminders for one student in the same tick become one message.
 
 ## LLM evals
 

@@ -41,6 +41,8 @@ const envSchema = z
     QUIET_HOURS_START: hour.default(21),
     QUIET_HOURS_END: hour.default(7),
     SILENT_AFTER_MINUTES: z.coerce.number().int().positive().default(720),
+    /** Demo only: "still stuck?" check-in this many minutes after blocking (unset → 07:00 next morning). */
+    BLOCKED_CHECKIN_AFTER_MINUTES: z.coerce.number().int().positive().optional(),
     DUE_SOON_HOUR: hour.default(18),
     DIGEST_TIME: z
       .string()

@@ -15,7 +15,17 @@ export type OutboundPayload = {
   /** Optional photo/document (Telegram file_id) sent with `text` as its caption, e.g. a doubt photo. */
   media?: { type: "photo" | "document"; fileId: string };
   /** Links the message to domain rows: side effects on send, cleanup on cancel. */
-  meta?: { assignmentId?: string; studentAssignmentId?: string; doubtMessageId?: string };
+  meta?: { assignmentId?: string; studentAssignmentId?: string; doubtMessageId?: string; reminder?: ReminderMeta };
+};
+
+/** Carried by reminder messages so `reminder.sent` can be logged when the message really goes out. */
+export type ReminderMeta = {
+  kinds: string[];
+  studentId: string;
+  saIds: string[];
+  wording: "llm" | "template";
+  schoolId: string;
+  classId: string;
 };
 
 export type EnqueueInput = {
@@ -45,10 +55,13 @@ export function deliveryTime(toStudent: boolean, at: Date = new Date()): Date {
   return at;
 }
 
-/** Inserts a message; a second enqueue with the same dedupeKey is skipped silently. */
-export async function enqueue(input: EnqueueInput): Promise<{ queued: boolean; sendAfter: Date }> {
+/**
+ * Inserts a message; a second enqueue with the same dedupeKey is skipped silently.
+ * Pass a transaction client to enqueue atomically with other writes (e.g. ReminderFired).
+ */
+export async function enqueue(input: EnqueueInput, db: Prisma.TransactionClient = prisma): Promise<{ queued: boolean; sendAfter: Date }> {
   const sendAfter = deliveryTime(input.toStudent, input.sendAfter ?? new Date());
-  const result = await prisma.outboundMessage.createMany({
+  const result = await db.outboundMessage.createMany({
     data: [
       {
         chatId: input.chatId,
@@ -82,6 +95,15 @@ async function afterSent(msg: OutboundMessage) {
   }
   if ((msg.kind === "doubt.alert" || msg.kind === "doubt.reply") && meta?.doubtMessageId) {
     await prisma.doubtMessage.updateMany({ where: { id: meta.doubtMessageId, deliveredAt: null }, data: { deliveredAt: new Date() } });
+  }
+  if (msg.kind === "reminder" && meta?.reminder) {
+    const { schoolId, classId, ...data } = meta.reminder;
+    await logEvent("reminder.sent", data, {
+      schoolId,
+      classId,
+      assignmentId: meta.assignmentId ?? null,
+      studentAssignmentId: data.saIds.length === 1 ? data.saIds[0] : null,
+    });
   }
 }
 

@@ -1,5 +1,5 @@
 import { safeEqual } from "@/lib/auth/init-data";
-import { runTickWithLease } from "@/lib/domain/tick";
+import { runTickWithLease, tickLogData } from "@/lib/domain/tick";
 import { getEnv } from "@/lib/env";
 import { logEvent } from "@/lib/log";
 
@@ -15,8 +15,9 @@ export async function POST(request: Request) {
   try {
     const result = await runTickWithLease();
     if ("skipped" in result) return Response.json({ skipped: true, reason: "another tick is running" });
-    await logEvent("tick.done", { ...result, source: "cron" });
-    return Response.json(result);
+    const data = tickLogData(result);
+    await logEvent("tick.done", { ...data, source: "cron" });
+    return Response.json(data);
   } catch (err) {
     await logEvent("tick.error", { error: err });
     return Response.json({ ok: false, error: "tick failed" }, { status: 500 });

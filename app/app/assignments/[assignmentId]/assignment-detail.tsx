@@ -4,12 +4,18 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { BackNav } from "@/app/app/_components/nav";
-import { Banner, Flags, StatusChip, statusLabel } from "@/app/app/_components/status";
+import { Banner, Flags, StatusChip, statusLabel, timeAgo } from "@/app/app/_components/status";
 import { Button, Loading, Notice, Section } from "@/app/app/_components/ui";
 import { apiFetch, confirmDialog, type ApiResult } from "@/app/app/_lib/telegram";
 import type { AssignmentDetailResponse } from "@/app/app/_lib/types";
 
 const ORDER = ["BLOCKED", "ASSIGNED", "ACKNOWLEDGED", "IN_PROGRESS", "SUBMITTED", "NEEDS_REVISION", "COMPLETED"];
+const REMINDER_LABEL: Record<string, string> = {
+  silent: "did you see it?",
+  due_soon: "due soon",
+  blocked_checkin: "still stuck?",
+  overdue: "was due",
+};
 const inputClass = "w-full rounded-lg border border-tg-hint/30 bg-tg-bg px-3 py-2 text-tg-text";
 
 // /app/assignments/:id: every student's status + flags. Subject teacher: select → [Checked in class]
@@ -125,6 +131,11 @@ export function AssignmentDetail() {
             <div className="min-w-0 flex-1">
               <p className="font-medium">{s.name}</p>
               <Flags flags={s.flags} />
+              {s.lastReminder && (
+                <p className="text-xs text-tg-hint">
+                  Reminder: &ldquo;{REMINDER_LABEL[s.lastReminder.kind] ?? s.lastReminder.kind}&rdquo;, {timeAgo(s.lastReminder.at)}
+                </p>
+              )}
               {!a.statusOnly && (
                 <div className="mt-1 flex gap-3 text-sm">
                   {s.hasSubmission && (
