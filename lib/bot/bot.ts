@@ -19,7 +19,9 @@ import {
   handleStudentNo,
   handleStudentYes,
 } from "@/lib/bot/handlers/student-card";
+import { handleFileDoubt, handleFileFor, handleFileYes, handleStudentMedia } from "@/lib/bot/handlers/student-media";
 import { resumeChoose, resumeWhich } from "@/lib/bot/handlers/student-text";
+import { teachingSlots } from "@/lib/domain/assignments";
 import {
   handleAbort,
   handleAnswer,
@@ -137,6 +139,9 @@ export function createBot(token: string): Bot<BotContext> {
   on(CB.askTeacher, handleAskTeacher);
   bot.callbackQuery(new RegExp(`^${CB.studentWhich}:${id}:${id}$`), (ctx) => resumeWhich(ctx, ctx.match[1], ctx.match[2]));
   bot.callbackQuery(new RegExp(`^${CB.studentChoose}:${id}:([bpd])$`), (ctx) => resumeChoose(ctx, ctx.match[1], ctx.match[2]));
+  on(CB.fileYes, handleFileYes);
+  on(CB.fileDoubt, handleFileDoubt);
+  bot.callbackQuery(new RegExp(`^${CB.fileFor}:${id}:${id}$`), (ctx) => handleFileFor(ctx, ctx.match[1], ctx.match[2]));
   // Teacher drafts, questions and confirmations
   bot.callbackQuery(new RegExp(`^${CB.send}:${id}$`), (ctx) => handleSend(ctx, ctx.match[1]));
   bot.callbackQuery(new RegExp(`^${CB.deleteDraft}:${id}$`), (ctx) => handleDeleteDraft(ctx, ctx.match[1]));
@@ -146,6 +151,10 @@ export function createBot(token: string): Bot<BotContext> {
   bot.callbackQuery(new RegExp(`^${CB.abort}:${id}$`), (ctx) => handleAbort(ctx, ctx.match[1]));
   bot.on("callback_query", (ctx) => ctx.answerCallbackQuery({ text: T.buttonExpired }));
 
+  // Photos/files from students are submissions or doubts (teachers' attachments fall through).
+  bot.on(["message:photo", "message:document"], (ctx, next) =>
+    ctx.appUser.student && teachingSlots(ctx.appUser).length === 0 ? handleStudentMedia(ctx) : next(),
+  );
   bot.on("message", handleOtherMessage);
 
   // Only reached in long-polling mode (errorBoundary handles webhook updates).

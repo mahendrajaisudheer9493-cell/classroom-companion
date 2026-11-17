@@ -4,7 +4,7 @@ A Telegram bot + Telegram Mini App that helps teachers assign work, follow up wi
 
 Design: [docs/DESIGN.md](docs/DESIGN.md) · PRD: [docs/PRD.md](docs/PRD.md) · Decisions: [docs/DECISIONS.md](docs/DECISIONS.md)
 
-> Status: linking, Mini App sign-in, access control, rosters, and assignments by chat (create / change / cancel with preview + confirm), the outbound queue with quiet hours, the minute tick, and student cards with [Got it]. Student replies, submissions and reminders come next.
+> Status: linking, Mini App sign-in, access control, rosters, and assignments by chat (create / change / cancel with preview + confirm), the outbound queue with quiet hours, the minute tick, and student cards with [Got it]. Students reply in chat (got it / progress / stuck / done, free text understood by the model with button fallbacks), submit by photo, file, text or in class, and teachers get real-time doubt alerts. Reminders, triage and review come next.
 
 ## Prerequisites
 
@@ -27,7 +27,7 @@ curl localhost:3000/api/health   # → { "ok": true, "db": true, "time": "...IST
 
 `npm run db:reset` drops all data, re-applies migrations and re-seeds.
 
-Checks: `npm run typecheck && npm test && npm run lint`
+Checks: `npm run typecheck && npm test && npm run lint`. `npm test` mocks the model and Telegram; the tests in `tests/integration` use the database in `.env` with a throwaway school they create and delete (skipped without `DATABASE_URL`).
 
 ## Deploy to Vercel
 
