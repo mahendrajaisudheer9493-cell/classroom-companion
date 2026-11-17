@@ -51,6 +51,7 @@ describe("state machine: no-ops", () => {
     ["IN_PROGRESS", "REPORT_PROGRESS", "student"],
     ["SUBMITTED", "SUBMIT", "student"], // resubmission: latest counts, status stays
     ["COMPLETED", "CHECKED_IN_CLASS", "teacher"],
+    ["IN_PROGRESS", "RESOLVE_DOUBT", "teacher"], // double tap on [Mark resolved]
   ])("%s --%s--> stays %s", (from, event, actor) => {
     expect(go(from, event, actor)).toBe(from);
   });
@@ -62,7 +63,7 @@ describe("state machine: illegal transitions throw", () => {
     ["COMPLETED", "REPORT_STUCK", "student"],
     ["ASSIGNED", "FEEDBACK_COMPLETE", "teacher"], // nothing submitted yet
     ["IN_PROGRESS", "FEEDBACK_REVISION", "teacher"],
-    ["IN_PROGRESS", "RESOLVE_DOUBT", "teacher"], // not blocked
+    ["ACKNOWLEDGED", "RESOLVE_DOUBT", "teacher"], // nothing to resolve
     ["SUBMITTED", "REPORT_PROGRESS", "student"],
     ["SUBMITTED", "FEEDBACK_COMPLETE", "student"], // wrong actor
     ["BLOCKED", "SUBMIT", "teacher"], // wrong actor
