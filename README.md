@@ -404,7 +404,7 @@ Target: https://classroom-companion-delta.vercel.app
 
 ✓ Control: Maths teacher reads her own 8A roster
     as teacher → GET /api/app/classes/cmwl0lv2g0002ymtqa28c5wsj
-    HTTP 200 (expected 200) roster of 8A: 1/6 linked
+    HTTP 200 (expected 200) roster of 8A: 2/6 linked
 
 ✓ (a) Ravi (student) requests the 8A roster
     as Ravi → GET /api/app/classes/cmwl0lv2g0002ymtqa28c5wsj
