@@ -36,3 +36,12 @@ export function apiHandler<C>(handler: Handler<C>): Handler<C> {
     }
   };
 }
+
+/** Reads a JSON body and validates it; invalid → 400 with the first problem in plain words. */
+export async function parseBody<T>(request: Request, schema: import("zod").ZodType<T>): Promise<T> {
+  const parsed = schema.safeParse(await request.json().catch(() => null));
+  if (!parsed.success) {
+    throw new HttpError(400, { error: "bad_request", message: parsed.error.issues[0]?.message ?? "Invalid request." });
+  }
+  return parsed.data;
+}

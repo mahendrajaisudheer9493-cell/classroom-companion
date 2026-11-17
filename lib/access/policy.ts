@@ -44,6 +44,31 @@ export function canViewSchoolStatuses(user: AccessUser, schoolId: string): boole
   return user.memberships.some((m) => m.role === "COORDINATOR" && m.schoolId === schoolId);
 }
 
+/** Coordinator setup (classes, invites, class teachers, memberships): only in their own school. */
+export function canManageSchool(user: AccessUser, schoolId: string): boolean {
+  return canViewSchoolStatuses(user, schoolId);
+}
+
+export type StudentWorkScope = { all: true } | { all: false; subjects: string[] };
+
+/**
+ * Whose work page (/app/students/:id) this user may open, and how much of it:
+ * the student themselves and their class teacher see every subject; their subject teachers see only
+ * their own subjects; everyone else (incl. a coordinator, who uses the school view) gets null.
+ */
+export function studentWorkScope(user: AccessUser, student: { id: string; classId: string }): StudentWorkScope | null {
+  if (user.student?.id === student.id) return { all: true };
+  if (canViewClassFull(user, student.classId)) return { all: true };
+  const subjects = user.memberships.flatMap((m) =>
+    m.role === "SUBJECT_TEACHER" && m.classId === student.classId && m.subject ? [m.subject] : [],
+  );
+  return subjects.length > 0 ? { all: false, subjects } : null;
+}
+
+export function scopeAllowsSubject(scope: StudentWorkScope, subject: string): boolean {
+  return scope.all || scope.subjects.some((s) => sameSubject(s, subject));
+}
+
 /** Roster, class link, regenerate code, unlink: any subject or class teacher of that class. */
 export function canManageRoster(user: AccessUser, classId: string): boolean {
   return user.memberships.some(

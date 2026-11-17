@@ -1,4 +1,4 @@
-import { loadClassForRoster } from "@/lib/access";
+import { canViewClassFull, loadClassForRoster } from "@/lib/access";
 import { getRequestUser } from "@/lib/auth/request-user";
 import { getRoster } from "@/lib/domain/roster";
 import { apiHandler } from "@/lib/http";
@@ -8,5 +8,5 @@ export const GET = apiHandler(async (request, ctx: RouteContext<"/api/app/classe
   const user = await getRequestUser(request);
   const { classId } = await ctx.params;
   const klass = await loadClassForRoster(user, classId);
-  return Response.json(await getRoster(klass));
+  return Response.json(await getRoster(klass, { isClassTeacher: canViewClassFull(user, klass.id) }));
 });

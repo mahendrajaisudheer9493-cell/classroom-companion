@@ -12,7 +12,10 @@ export function toClassLink(code: { code: string; expiresAt: Date }): ClassLink 
 }
 
 /** Roster view for a class. Callers must have checked canManageRoster first. */
-export async function getRoster(klass: { id: string; name: string; school: { name: string } }): Promise<RosterResponse> {
+export async function getRoster(
+  klass: { id: string; name: string; school: { name: string } },
+  viewer: { isClassTeacher: boolean } = { isClassTeacher: false },
+): Promise<RosterResponse> {
   const [students, code] = await Promise.all([listRoster(klass.id), activeJoinCode(klass.id)]);
   const users = await prisma.user.findMany({
     where: { id: { in: students.flatMap((s) => (s.userId ? [s.userId] : [])) } },
@@ -35,5 +38,6 @@ export async function getRoster(klass: { id: string; name: string; school: { nam
     }),
     linked: students.filter((s) => s.userId).length,
     total: students.length,
+    isClassTeacher: viewer.isClassTeacher,
   };
 }

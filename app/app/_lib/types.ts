@@ -35,6 +35,8 @@ export type RosterResponse = {
   }[];
   linked: number;
   total: number;
+  /** The viewer is this class's class teacher → Load and Struggling tabs. */
+  isClassTeacher: boolean;
 };
 
 export type FormOption = { classId: string; className: string; subject: string };
@@ -221,4 +223,112 @@ export type DigestResponse = {
   sent: boolean;
   counts: { stuck: number; silent: number; overdue: number; toReview: number; hasntSeenChange: number };
   message: string;
+};
+
+// ───────────── Class teacher (CT1, CT2) ─────────────
+
+export type LoadDayDto = {
+  date: string; // YYYY-MM-DD IST
+  label: string; // "Thu 19 Nov"
+  heavy: boolean; // 3+ due that day
+  items: { id: string; subject: string; title: string; dueLabel: string }[];
+};
+
+export type StrugglingStudentDto = {
+  studentId: string;
+  name: string;
+  subjects: { subject: string; problems: ("stuck" | "silent" | "overdue")[] }[];
+  /** "stuck in Maths, overdue in English" */
+  summary: string;
+};
+
+export type ClassLoadResponse = { class: { id: string; name: string }; days: LoadDayDto[] };
+export type ClassStrugglingResponse = { class: { id: string; name: string }; students: StrugglingStudentDto[] };
+
+export type StudentWorkResponse = {
+  student: { id: string; name: string; rollNo: string; className: string; linked: boolean };
+  /** false → a subject teacher, who sees only their own subjects */
+  allSubjects: boolean;
+  items: {
+    saId: string;
+    subject: string;
+    title: string;
+    dueLabel: string;
+    status: string;
+    overdue: boolean;
+    submissions: SubmissionDto[];
+    feedback: FeedbackDto[];
+  }[];
+};
+
+// ───────────── Coordinator (C1, C2) ─────────────
+
+export type HealthStatsDto = {
+  openAssignments: number;
+  /** % of delivered work seen in its current version; null when nothing delivered */
+  seenPct: number | null;
+  /** % of student-assignments overdue; null when there are none */
+  overduePct: number | null;
+  stuck: number;
+};
+
+export type SchoolHealthResponse = {
+  school: { id: string; name: string };
+  classes: { id: string; name: string; stats: HealthStatsDto; linked: number; total: number }[];
+  worstClassId: string | null;
+};
+
+export type ClassHealthResponse = {
+  school: { id: string; name: string };
+  class: { id: string; name: string; linked: number; total: number };
+  stats: HealthStatsDto;
+  subjects: { subject: string; stats: HealthStatsDto }[];
+  worstSubject: string | null;
+};
+
+/** Names and statuses only: never submissions, doubts or feedback. */
+export type SubjectDetailResponse = {
+  class: { id: string; name: string };
+  subject: string;
+  assignments: {
+    id: string;
+    title: string;
+    dueLabel: string;
+    stats: HealthStatsDto;
+    students: { name: string; status: string; overdue: boolean; stuck: boolean }[];
+  }[];
+};
+
+export type InviteDto = { code: string; url: string; expiresAt: string; grants: string[] };
+
+export type SchoolSetupResponse = {
+  school: { id: string; name: string };
+  classes: {
+    id: string;
+    name: string;
+    grade: number;
+    total: number;
+    linked: number;
+    classTeacher: { userId: string; name: string } | null;
+    link: ClassLink | null;
+  }[];
+  teachers: {
+    userId: string;
+    name: string;
+    username: string | null;
+    isYou: boolean;
+    memberships: { id: string; role: string; classId: string | null; className: string | null; subject: string | null; label: string }[];
+  }[];
+  invites: InviteDto[];
+};
+
+// ───────────── At risk this week ─────────────
+
+export type RiskStudentDto = {
+  studentId: string;
+  name: string;
+  className: string;
+  signals: ("stuck" | "silent" | "overdue" | "needs_revision" | "many_overdue")[];
+  /** "stuck: Maths · Ex 4.2", "overdue ×2: …" */
+  reasons: string[];
 };
