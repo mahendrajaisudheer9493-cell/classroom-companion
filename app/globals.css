@@ -1,47 +1,163 @@
 @import "tailwindcss";
 
-/* Fallbacks for a normal browser. Inside Telegram, telegram-web-app.js sets the
-   --tg-theme-* variables on <html>, so the Mini App matches the user's Telegram theme. */
+/* ─────────────────────────────── Theme ───────────────────────────────
+   Inside Telegram, telegram-web-app.js sets --tg-theme-* on <html> and we set data-theme from
+   WebApp.colorScheme (lib: app/app/_components/telegram-init.tsx). Outside Telegram the fallbacks
+   below are used, following the system light/dark setting.
+   Layout follows Telegram settings screens: grey page (secondary bg) + white inset sections. */
+
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-  --fallback-hint: #707579;
-  --fallback-link: #2481cc;
-  --fallback-secondary-bg: #f1f1f4;
-  --fallback-destructive: #e53935;
+  --fb-bg: #ffffff;
+  --fb-secondary-bg: #efeff4;
+  --fb-section-bg: #ffffff;
+  --fb-text: #000000;
+  --fb-hint: #8e8e93;
+  --fb-link: #2481cc;
+  --fb-button: #2481cc;
+  --fb-button-text: #ffffff;
+  --fb-destructive: #e53935;
+  --fb-section-header: #6d6d72;
+
+  /* Status tones (light). Chips use the tone as text and a soft tint of it as background. */
+  --status-stuck: #dc2626; /* red */
+  --status-silent: #b45309; /* amber */
+  --status-overdue: #e11d48; /* rose */
+  --status-review: #2563eb; /* blue */
+  --status-progress: #4f46e5; /* indigo */
+  --status-ack: #0f766e; /* teal */
+  --status-assigned: #6b7280; /* gray */
+  --status-submitted: #2563eb; /* blue */
+  --status-revision: #c2410c; /* orange */
+  --status-completed: #15803d; /* green */
+  --tone-mix: 13%;
+  color-scheme: light;
 }
 
+:root[data-theme="dark"] {
+  --fb-bg: #17212b;
+  --fb-secondary-bg: #0e1621;
+  --fb-section-bg: #17212b;
+  --fb-text: #f5f5f5;
+  --fb-hint: #708499;
+  --fb-link: #6ab3f3;
+  --fb-button: #5288c1;
+  --fb-button-text: #ffffff;
+  --fb-destructive: #ec3942;
+  --fb-section-header: #6ab3f3;
+
+  --status-stuck: #f87171;
+  --status-silent: #fbbf24;
+  --status-overdue: #fb7185;
+  --status-review: #60a5fa;
+  --status-progress: #a5b4fc;
+  --status-ack: #2dd4bf;
+  --status-assigned: #9ca3af;
+  --status-submitted: #60a5fa;
+  --status-revision: #fb923c;
+  --status-completed: #4ade80;
+  --tone-mix: 18%;
+  color-scheme: dark;
+}
+
+/* Normal browser before/without Telegram: follow the system setting. */
 @media (prefers-color-scheme: dark) {
-  :root {
-    --background: #17212b;
-    --foreground: #f5f5f5;
-    --fallback-hint: #8b9aa7;
-    --fallback-link: #5aa7e8;
-    --fallback-secondary-bg: #232e3c;
-    --fallback-destructive: #ef5350;
+  :root:not([data-theme]) {
+    --fb-bg: #17212b;
+    --fb-secondary-bg: #0e1621;
+    --fb-section-bg: #17212b;
+    --fb-text: #f5f5f5;
+    --fb-hint: #708499;
+    --fb-link: #6ab3f3;
+    --fb-button: #5288c1;
+    --fb-destructive: #ec3942;
+    --fb-section-header: #6ab3f3;
+    --status-stuck: #f87171;
+    --status-silent: #fbbf24;
+    --status-overdue: #fb7185;
+    --status-review: #60a5fa;
+    --status-progress: #a5b4fc;
+    --status-ack: #2dd4bf;
+    --status-assigned: #9ca3af;
+    --status-submitted: #60a5fa;
+    --status-revision: #fb923c;
+    --status-completed: #4ade80;
+    --tone-mix: 18%;
+    color-scheme: dark;
   }
 }
 
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  /* System font stack (Telegram uses the platform font) and the type scale 13/15/17/20/24. */
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --text-caption: 13px;
+  --text-caption--line-height: 18px;
+  --text-body: 15px;
+  --text-body--line-height: 21px;
+  --text-headline: 17px;
+  --text-headline--line-height: 22px;
+  --text-title: 20px;
+  --text-title--line-height: 25px;
+  --text-large: 24px;
+  --text-large--line-height: 30px;
 
-  /* Telegram theme → Tailwind: bg-tg-bg, text-tg-hint, bg-tg-button, ... */
-  --color-tg-bg: var(--tg-theme-bg-color, var(--background));
-  --color-tg-text: var(--tg-theme-text-color, var(--foreground));
-  --color-tg-hint: var(--tg-theme-hint-color, var(--fallback-hint));
-  --color-tg-link: var(--tg-theme-link-color, var(--fallback-link));
-  --color-tg-button: var(--tg-theme-button-color, var(--fallback-link));
-  --color-tg-button-text: var(--tg-theme-button-text-color, #ffffff);
-  --color-tg-secondary-bg: var(--tg-theme-secondary-bg-color, var(--fallback-secondary-bg));
-  --color-tg-section-bg: var(--tg-theme-section-bg-color, var(--tg-theme-bg-color, var(--background)));
-  --color-tg-destructive: var(--tg-theme-destructive-text-color, var(--fallback-destructive));
+  /* Surfaces: bg-app (page), bg-surface (sections/cards), bg-field (inputs, inner panels). */
+  --color-app: var(--tg-theme-secondary-bg-color, var(--fb-secondary-bg));
+  --color-surface: var(--tg-theme-section-bg-color, var(--tg-theme-bg-color, var(--fb-section-bg)));
+  --color-field: var(--tg-theme-secondary-bg-color, var(--fb-secondary-bg));
+  --color-separator: color-mix(in srgb, var(--tg-theme-hint-color, var(--fb-hint)) 22%, transparent);
+
+  /* Telegram theme → Tailwind: text-tg-hint, bg-tg-button, ... */
+  --color-tg-bg: var(--tg-theme-bg-color, var(--fb-bg));
+  --color-tg-text: var(--tg-theme-text-color, var(--fb-text));
+  --color-tg-hint: var(--tg-theme-hint-color, var(--fb-hint));
+  --color-tg-link: var(--tg-theme-link-color, var(--fb-link));
+  --color-tg-button: var(--tg-theme-button-color, var(--fb-button));
+  --color-tg-button-text: var(--tg-theme-button-text-color, var(--fb-button-text));
+  --color-tg-destructive: var(--tg-theme-destructive-text-color, var(--fb-destructive));
+  --color-tg-section-header: var(--tg-theme-section-header-text-color, var(--fb-section-header));
+  --color-tg-subtitle: var(--tg-theme-subtitle-text-color, var(--tg-theme-hint-color, var(--fb-hint)));
+}
+
+/* Tones: set --tone, then use `tinted` (chip/tile) or `text-tone`. */
+@utility tone-stuck { --tone: var(--status-stuck); }
+@utility tone-silent { --tone: var(--status-silent); }
+@utility tone-overdue { --tone: var(--status-overdue); }
+@utility tone-review { --tone: var(--status-review); }
+@utility tone-progress { --tone: var(--status-progress); }
+@utility tone-ack { --tone: var(--status-ack); }
+@utility tone-assigned { --tone: var(--status-assigned); }
+@utility tone-submitted { --tone: var(--status-submitted); }
+@utility tone-revision { --tone: var(--status-revision); }
+@utility tone-completed { --tone: var(--status-completed); }
+@utility tone-accent { --tone: var(--tg-theme-button-color, var(--fb-button)); }
+@utility tone-danger { --tone: var(--tg-theme-destructive-text-color, var(--fb-destructive)); }
+@utility tone-neutral { --tone: var(--tg-theme-hint-color, var(--fb-hint)); }
+@utility tinted {
+  color: var(--tone);
+  background-color: color-mix(in srgb, var(--tone) var(--tone-mix), transparent);
+}
+@utility text-tone { color: var(--tone); }
+@utility bg-tone { background-color: var(--tone); }
+
+html {
+  background: var(--color-app);
+  -webkit-tap-highlight-color: transparent;
 }
 
 body {
-  background: var(--tg-theme-bg-color, var(--background));
-  color: var(--tg-theme-text-color, var(--foreground));
-  font-family: var(--font-geist-sans), system-ui, sans-serif;
+  background: var(--color-app);
+  color: var(--color-tg-text);
+  font-family: var(--font-sans);
+  font-size: var(--text-body);
+  line-height: var(--text-body--line-height);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Inset grouped list: separators between rows, inset past the leading avatar/icon. */
+.list-row + .list-row > .list-row-body {
+  border-top: 0.5px solid var(--color-separator);
+}
+
+@keyframes skeleton-pulse {
+  50% { opacity: 0.45; }
 }

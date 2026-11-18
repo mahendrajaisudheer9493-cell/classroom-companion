@@ -16,7 +16,7 @@ const REMINDER_LABEL: Record<string, string> = {
   blocked_checkin: "still stuck?",
   overdue: "was due",
 };
-const inputClass = "w-full rounded-lg border border-tg-hint/30 bg-tg-bg px-3 py-2 text-tg-text";
+const inputClass = "w-full rounded-lg border border-tg-hint/30 bg-field px-3 py-2 text-tg-text";
 
 // /app/assignments/:id: every student's status + flags. Subject teacher: select → [Checked in class]
 // [Nudge selected]; [Change due date] and [Cancel assignment] (same domain functions as chat).
@@ -97,7 +97,7 @@ export function AssignmentDetail() {
 
       <div className="mb-4 mt-3 flex flex-wrap gap-1.5">
         {ORDER.filter((s) => a.counts[s]).map((s) => (
-          <span key={s} className="rounded-full bg-tg-secondary-bg px-3 py-1 text-xs">
+          <span key={s} className="rounded-full bg-surface px-3 py-1 text-xs">
             {statusLabel(s)} <b>{a.counts[s]}</b>
           </span>
         ))}
@@ -106,7 +106,7 @@ export function AssignmentDetail() {
       {notice && <Banner tone={notice.tone}>{notice.text}</Banner>}
 
       {a.canManage && selected.size > 0 && (
-        <div className="sticky top-0 z-10 -mx-4 mb-3 flex gap-2 bg-tg-bg px-4 py-2">
+        <div className="sticky top-0 z-10 -mx-4 mb-3 flex gap-2 bg-field px-4 py-2">
           <Button onClick={checkedInClass} disabled={busy}>
             Checked in class ({selected.size})
           </Button>

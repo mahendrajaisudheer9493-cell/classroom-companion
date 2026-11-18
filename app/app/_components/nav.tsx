@@ -1,5 +1,6 @@
 "use client";
 
+import { ChevronLeft } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -34,8 +35,9 @@ export function BackNav({ fallbackHref = "/app", label = "Back" }: { fallbackHre
 
   if (native) return null;
   return (
-    <Link href={fallbackHref} className="mb-3 inline-block py-1 text-sm text-tg-link">
-      ‹ {label}
+    <Link href={fallbackHref} className="-ml-1 mb-3 inline-flex items-center gap-0.5 py-1 text-body text-tg-link">
+      <ChevronLeft aria-hidden size={20} />
+      {label}
     </Link>
   );
 }

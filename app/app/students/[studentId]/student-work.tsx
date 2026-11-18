@@ -33,7 +33,7 @@ export function StudentWork() {
 
       {items.length === 0 && <p className="py-6 text-center text-tg-hint">No assignments yet.</p>}
       {items.map((i) => (
-        <details key={i.saId} className="mb-3 overflow-hidden rounded-xl bg-tg-secondary-bg">
+        <details key={i.saId} className="mb-3 overflow-hidden rounded-xl bg-surface">
           <summary className="flex cursor-pointer list-none items-center gap-3 px-4 py-3">
             <div className="min-w-0 flex-1">
               <p className="font-medium">
@@ -47,7 +47,7 @@ export function StudentWork() {
             </div>
             <StatusChip status={i.status} />
           </summary>
-          <div className="bg-tg-bg px-2 pt-3">
+          <div className="bg-field px-2 pt-3">
             {i.submissions.length === 0 && i.feedback.length === 0 && <p className="px-2 pb-3 text-sm text-tg-hint">Nothing handed in yet.</p>}
             <SubmissionList submissions={i.submissions} />
             <FeedbackList feedback={i.feedback} />

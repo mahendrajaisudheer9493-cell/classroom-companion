@@ -5,10 +5,12 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { BackNav } from "@/app/app/_components/nav";
 import { Button, Loading, Notice, Section } from "@/app/app/_components/ui";
-import { apiFetch, type ApiResult } from "@/app/app/_lib/telegram";
+import { Banner } from "@/app/app/_components/status";
+import { apiFetch, haptic, type ApiResult } from "@/app/app/_lib/telegram";
+import { useMainButton } from "@/components/ui/main-button";
 import type { AssignmentFormResponse, CreateAssignmentBody, CreateAssignmentResponse } from "@/app/app/_lib/types";
 
-const inputClass = "w-full rounded-lg border border-tg-hint/30 bg-tg-bg px-3 py-2 text-tg-text";
+const inputClass = "w-full rounded-lg border border-tg-hint/30 bg-field px-3 py-2 text-tg-text";
 
 /** Tomorrow's date in IST as YYYY-MM-DD (for the date input default). */
 const tomorrowIst = () => new Date(Date.now() + 86_400_000).toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
@@ -45,21 +47,6 @@ export function NewAssignmentForm() {
     });
   }, [draftId]);
 
-  if (!form) return <Loading />;
-  if (!form.ok) return <Notice error={form.error} message={form.message} />;
-
-  if (done) {
-    return (
-      <div className="py-6">
-        <h1 className="mb-3 text-xl font-semibold">Sent ✓</h1>
-        <p className="mb-5 text-tg-hint">{done}</p>
-        <Link href="/app" className="text-tg-link">
-          ‹ Back to home
-        </Link>
-      </div>
-    );
-  }
-
   const set = (key: keyof typeof values) => (e: { target: { value: string } }) => setValues({ ...values, [key]: e.target.value });
 
   async function submit() {
@@ -78,8 +65,32 @@ export function NewAssignmentForm() {
     setError(null);
     const res = await apiFetch<CreateAssignmentResponse>("/api/app/assignments", { method: "POST", body: JSON.stringify(body) });
     setBusy(false);
-    if (res.ok) setDone(res.data.message);
-    else setError(res.message);
+    if (res.ok) {
+      haptic.success();
+      setDone(res.data.message);
+    } else {
+      haptic.error();
+      setError(res.message);
+    }
+  }
+
+  const canSend = !!form?.ok && !busy && !!values.slot && !!values.title.trim();
+  // Telegram's MainButton is the main action; outside Telegram the normal button below is shown.
+  const nativeMain = useMainButton({ text: "Send to students", onClick: submit, disabled: !canSend, loading: busy, visible: !!form?.ok && !done });
+
+  if (!form) return <Loading />;
+  if (!form.ok) return <Notice error={form.error} message={form.message} />;
+
+  if (done) {
+    return (
+      <div className="py-6">
+        <h1 className="mb-3 text-xl font-semibold">Sent ✓</h1>
+        <p className="mb-5 text-tg-hint">{done}</p>
+        <Link href="/app" className="text-tg-link">
+          ‹ Back to home
+        </Link>
+      </div>
+    );
   }
 
   return (
@@ -119,10 +130,12 @@ export function NewAssignmentForm() {
         </div>
       </Section>
 
-      {error && <p className="mb-4 rounded-lg bg-tg-secondary-bg px-4 py-2 text-sm text-tg-destructive">{error}</p>}
-      <Button onClick={submit} disabled={busy || !values.slot || !values.title.trim()}>
-        {busy ? "Sending…" : "Send to students"}
-      </Button>
+      {error && <Banner tone="error">{error}</Banner>}
+      {!nativeMain && (
+        <Button onClick={submit} disabled={!canSend}>
+          {busy ? "Sending…" : "Send to students"}
+        </Button>
+      )}
     </>
   );
 }

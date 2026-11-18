@@ -4,7 +4,7 @@ import { parseRoster, rosterPreview } from "@/lib/domain/roster-parse";
 
 // Paste box for student names with a live preview, using the exact parser the server uses.
 
-const input = "w-full rounded-lg border border-tg-hint/30 bg-tg-bg px-3 py-2 text-tg-text";
+const input = "w-full rounded-lg border border-tg-hint/30 bg-field px-3 py-2 text-tg-text";
 
 export function RosterPaste({ value, onChange, label = "Student names" }: { value: string; onChange: (v: string) => void; label?: string }) {
   const names = parseRoster(value);

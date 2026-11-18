@@ -1,14 +1,38 @@
 // Client-side helpers for the Telegram Mini App. Identity is NEVER decided here: we only forward
 // Telegram's signed initData to our API, which validates it on every request.
 
-type TelegramWebApp = {
+type BottomButton = {
+  setText(text: string): void;
+  show(): void;
+  hide(): void;
+  enable(): void;
+  disable(): void;
+  showProgress(leaveActive?: boolean): void;
+  hideProgress(): void;
+  onClick(cb: () => void): void;
+  offClick(cb: () => void): void;
+};
+
+export type TelegramWebApp = {
   initData: string;
   version: string;
+  colorScheme?: "light" | "dark";
   ready(): void;
   expand(): void;
   showConfirm?(message: string, callback: (ok: boolean) => void): void;
   openTelegramLink?(url: string): void;
   isVersionAtLeast?(version: string): boolean;
+  setHeaderColor?(color: string): void;
+  setBackgroundColor?(color: string): void;
+  onEvent?(event: string, cb: () => void): void;
+  offEvent?(event: string, cb: () => void): void;
+  MainButton?: BottomButton;
+  BackButton?: { show(): void; hide(): void; onClick(cb: () => void): void; offClick(cb: () => void): void };
+  HapticFeedback?: {
+    impactOccurred(style: "light" | "medium" | "heavy" | "rigid" | "soft"): void;
+    notificationOccurred(type: "error" | "success" | "warning"): void;
+    selectionChanged(): void;
+  };
 };
 
 declare global {
@@ -72,4 +96,26 @@ export async function shareInTelegram(url: string, text: string): Promise<boolea
   if (!webApp?.initData || !webApp.openTelegramLink) return false;
   webApp.openTelegramLink(`https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(text)}`);
   return true;
+}
+
+// ───────────────────────────── Telegram feel ─────────────────────────────
+
+const webAppNow = (): TelegramWebApp | undefined => (typeof window === "undefined" ? undefined : window.Telegram?.WebApp);
+const atLeast = (w: TelegramWebApp | undefined, v: string) => !!w?.isVersionAtLeast?.(v);
+
+/** Haptics (no-ops outside Telegram or on old clients). */
+export const haptic = {
+  tap: () => atLeast(webAppNow(), "6.1") && webAppNow()?.HapticFeedback?.impactOccurred("light"),
+  select: () => atLeast(webAppNow(), "6.1") && webAppNow()?.HapticFeedback?.selectionChanged(),
+  success: () => atLeast(webAppNow(), "6.1") && webAppNow()?.HapticFeedback?.notificationOccurred("success"),
+  error: () => atLeast(webAppNow(), "6.1") && webAppNow()?.HapticFeedback?.notificationOccurred("error"),
+};
+
+/** data-theme from Telegram's colorScheme; header and background colours match the page (secondary bg). */
+export function syncTheme(webApp: TelegramWebApp) {
+  document.documentElement.dataset.theme = webApp.colorScheme === "dark" ? "dark" : "light";
+  if (atLeast(webApp, "6.1")) {
+    webApp.setHeaderColor?.("secondary_bg_color");
+    webApp.setBackgroundColor?.("secondary_bg_color");
+  }
 }

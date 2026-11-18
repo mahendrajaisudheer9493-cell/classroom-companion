@@ -29,7 +29,7 @@ export function SchoolHealth() {
       <h1 className="text-xl font-semibold">School health</h1>
       <p className="mb-4 text-sm text-tg-hint">{school.name}</p>
 
-      <p className="mb-4 rounded-lg bg-tg-secondary-bg px-4 py-2.5 text-sm">
+      <p className="mb-4 rounded-lg bg-surface px-4 py-2.5 text-sm">
         {worst ? (
           <>
             ⚠ <b>{worst.name}</b> is falling behind: {worst.stats.overduePct ?? 0}% overdue, {worst.stats.stuck} stuck.

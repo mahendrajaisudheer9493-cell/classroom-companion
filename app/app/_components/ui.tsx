@@ -1,18 +1,26 @@
-import type { ReactNode } from "react";
+"use client";
 
-// Small building blocks styled with Telegram theme colours.
+import { CloudOff, Lock, ShieldX, Users } from "lucide-react";
+import type { ReactNode } from "react";
+import { Button as BaseButton } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { List } from "@/components/ui/list";
+import { SkeletonList } from "@/components/ui/skeleton";
+
+// Compatibility layer: the screens' original building blocks, now drawn with components/ui
+// (inset grouped lists, tonal buttons, skeletons, empty states).
 
 export function Section({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <section className="mb-6">
-      <h2 className="mb-2 px-1 text-xs font-semibold uppercase tracking-wide text-tg-hint">{title}</h2>
-      <div className="overflow-hidden rounded-xl bg-tg-secondary-bg">{children}</div>
-    </section>
-  );
+  return <List title={title}>{children}</List>;
 }
 
+/** A free-form row inside a Section (separators like ListRow). */
 export function Row({ children }: { children: ReactNode }) {
-  return <div className="flex items-center gap-3 border-b border-tg-hint/15 px-4 py-3 last:border-b-0">{children}</div>;
+  return (
+    <div className="list-row flex">
+      <div className="list-row-body flex min-h-11 min-w-0 flex-1 items-center gap-3 py-2.5 pl-4 pr-3">{children}</div>
+    </div>
+  );
 }
 
 export function Button({
@@ -26,56 +34,51 @@ export function Button({
   variant?: "primary" | "secondary" | "danger";
   disabled?: boolean;
 }) {
-  const styles = {
-    primary: "bg-tg-button text-tg-button-text",
-    secondary: "border border-tg-hint/25 bg-tg-bg text-tg-link",
-    danger: "border border-tg-hint/25 bg-tg-bg text-tg-destructive",
-  }[variant];
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className={`min-h-10 rounded-lg px-3.5 py-2 text-sm font-medium active:opacity-70 disabled:opacity-50 ${styles}`}
-    >
+    <BaseButton size="sm" variant={variant === "danger" ? "destructive" : variant} onClick={onClick} disabled={disabled}>
       {children}
-    </button>
+    </BaseButton>
   );
 }
 
 export function Loading() {
-  return <p className="py-10 text-center text-tg-hint">Loading…</p>;
+  return (
+    <div className="pt-2">
+      <SkeletonList rows={3} />
+      <SkeletonList rows={2} />
+    </div>
+  );
 }
 
 /** Shown when the API says we're not linked, or we're outside Telegram, or something failed. */
 export function Notice({ error, message }: { error: string; message: string }) {
   if (error === "not_linked") {
     return (
-      <div className="py-8">
-        <h1 className="mb-3 text-xl font-semibold">You haven&apos;t joined a class yet</h1>
-        <ol className="list-decimal space-y-2 pl-5 text-tg-hint">
-          <li>Ask your teacher for your class link.</li>
-          <li>Open the link in Telegram. It starts a chat with the Classroom Companion bot.</li>
-          <li>Confirm your class and tap your name.</li>
-          <li>Come back here with the bot&apos;s Open button.</li>
-        </ol>
-      </div>
+      <EmptyState
+        icon={Users}
+        tone="accent"
+        title="You haven't joined a class yet"
+        detail={
+          <ol className="mt-2 list-decimal space-y-1 pl-5 text-left">
+            <li>Ask your teacher for your class link.</li>
+            <li>Open it in Telegram. It starts a chat with the Classroom Companion bot.</li>
+            <li>Confirm your class and tap your name.</li>
+            <li>Come back here with the bot&apos;s Open button.</li>
+          </ol>
+        }
+      />
     );
   }
   if (error === "unauthorized") {
     return (
-      <div className="py-8">
-        <h1 className="mb-3 text-xl font-semibold">Open this in Telegram</h1>
-        <p className="text-tg-hint">
-          Classroom Companion runs inside Telegram. Open the Classroom Companion bot and tap Open.
-        </p>
-      </div>
+      <EmptyState
+        icon={Lock}
+        tone="accent"
+        title="Open this in Telegram"
+        detail="Classroom Companion runs inside Telegram. Open the Classroom Companion bot and tap Open."
+      />
     );
   }
-  return (
-    <div className="py-8">
-      <h1 className="mb-3 text-xl font-semibold">{error === "forbidden" ? "Not allowed" : "Something went wrong"}</h1>
-      <p className="text-tg-hint">{message}</p>
-    </div>
-  );
+  if (error === "forbidden") return <EmptyState icon={ShieldX} tone="danger" title="Not allowed" detail={message} />;
+  return <EmptyState icon={CloudOff} tone="neutral" title="Something went wrong" detail={message} />;
 }

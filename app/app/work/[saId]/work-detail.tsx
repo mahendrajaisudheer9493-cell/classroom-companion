@@ -78,8 +78,8 @@ export function WorkDetail() {
       {notice && <Banner tone={notice.tone}>{notice.text}</Banner>}
 
       {w.changeNote && (
-        <div className="mb-4 flex items-center gap-3 rounded-xl bg-amber-500/15 px-4 py-3">
-          <p className="flex-1 text-sm font-medium">{w.changeNote}</p>
+        <div className="tinted tone-silent mb-4 flex items-center gap-3 rounded-2xl px-4 py-3">
+          <p className="flex-1 text-body font-medium">{w.changeNote}</p>
           <Button onClick={() => post("ack")} disabled={busy}>
             Got it
           </Button>
@@ -101,7 +101,7 @@ export function WorkDetail() {
             {mode === "type" ? (
               <>
                 <textarea
-                  className="w-full rounded-lg border border-tg-hint/30 bg-tg-bg px-3 py-2 text-tg-text"
+                  className="w-full rounded-lg border border-tg-hint/30 bg-field px-3 py-2 text-tg-text"
                   rows={5}
                   value={answer}
                   onChange={(e) => setAnswer(e.target.value)}
@@ -158,7 +158,7 @@ export function WorkDetail() {
       )}
 
       {w.level === "full" && (
-        <Link href={`/app/doubts/${saId}`} className="mb-6 flex min-h-11 items-center justify-between rounded-xl bg-tg-secondary-bg px-4 active:opacity-70">
+        <Link href={`/app/doubts/${saId}`} className="mb-6 flex min-h-11 items-center justify-between rounded-xl bg-surface px-4 active:opacity-70">
           <span className="font-medium">{w.isOwner ? "Ask your teacher" : "Doubt thread"}</span>
           <span className="text-sm text-tg-hint">
             {w.doubtCount ? `${w.doubtCount} message${w.doubtCount === 1 ? "" : "s"}` : ""} ›

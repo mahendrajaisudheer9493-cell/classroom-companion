@@ -5,16 +5,25 @@ import { useCallback, useEffect, useState } from "react";
 import { BackNav } from "@/app/app/_components/nav";
 import { Banner, Flags, StatusChip, timeAgo } from "@/app/app/_components/status";
 import { Button, Loading, Notice, Section } from "@/app/app/_components/ui";
+import { CircleCheckBig } from "lucide-react";
+import { EmptyState, List, TONE_CLASS, TRIAGE_GROUP } from "@/components/ui";
 import { apiFetch, type ApiResult } from "@/app/app/_lib/telegram";
 import type { NudgeResponse, RiskStudentDto, TriageItemDto, TriageResponse } from "@/app/app/_lib/types";
 
 type Group = "stuck" | "silent" | "overdue" | "toReview";
-const GROUPS: { key: Group; title: string }[] = [
-  { key: "stuck", title: "🆘 Stuck" },
-  { key: "silent", title: "👀 Silent" },
-  { key: "overdue", title: "⏰ Overdue" },
-  { key: "toReview", title: "📥 To review" },
-];
+const GROUPS: { key: Group }[] = [{ key: "stuck" }, { key: "silent" }, { key: "overdue" }, { key: "toReview" }];
+
+/** "● Stuck · 3" in the group's colour. */
+function GroupTitle({ group, count }: { group: Group; count: number }) {
+  const m = TRIAGE_GROUP[group];
+  const Icon = m.icon;
+  return (
+    <span className={`${TONE_CLASS[m.tone]} text-tone inline-flex items-center gap-1.5`}>
+      <Icon aria-hidden size={14} strokeWidth={2.4} />
+      {m.label} · {count}
+    </span>
+  );
+}
 
 // /app/triage: "talk to these 4 today". Most urgent first, one-tap actions.
 export default function TriagePage() {
@@ -62,7 +71,7 @@ export default function TriagePage() {
               key={c.id ?? "all"}
               type="button"
               onClick={() => setClassId(c.id)}
-              className={`min-h-9 shrink-0 rounded-full px-4 text-sm font-medium ${classId === c.id ? "bg-tg-button text-tg-button-text" : "bg-tg-secondary-bg"}`}
+              className={`min-h-9 shrink-0 rounded-full px-4 text-sm font-medium ${classId === c.id ? "bg-tg-button text-tg-button-text" : "bg-surface"}`}
             >
               {c.name}
             </button>
@@ -75,13 +84,10 @@ export default function TriagePage() {
       <AtRisk className={t.classes.find((c) => c.id === classId)?.name ?? null} />
 
       {empty ? (
-        <div className="py-16 text-center">
-          <p className="text-2xl font-semibold">All clear ✓</p>
-          <p className="mt-1 text-tg-hint">Nobody needs you right now.</p>
-        </div>
+        <EmptyState icon={CircleCheckBig} tone="completed" title="All clear" detail="Nobody needs you right now." />
       ) : (
         GROUPS.filter((g) => t[g.key].length > 0).map((g) => (
-          <Section key={g.key} title={`${g.title} · ${t[g.key].length}`}>
+          <List key={g.key} title={<GroupTitle group={g.key} count={t[g.key].length} />}>
             {t[g.key].map((i) => (
               <div key={`${g.key}:${i.saId}`} className="border-b border-tg-hint/15 px-4 py-3 last:border-b-0">
                 <div className="flex items-start gap-2">
@@ -127,7 +133,7 @@ export default function TriagePage() {
                 </div>
               </div>
             ))}
-          </Section>
+          </List>
         ))
       )}
     </>

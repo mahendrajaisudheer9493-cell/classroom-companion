@@ -6,6 +6,7 @@ import { StatusChip } from "@/app/app/_components/status";
 import { Section } from "@/app/app/_components/ui";
 import { apiFetch, type ApiResult } from "@/app/app/_lib/telegram";
 import type { MyWorkItem, MyWorkResponse } from "@/app/app/_lib/types";
+import { Chip } from "@/components/ui/status-chip";
 
 const GROUPS: { key: keyof MyWorkResponse; title: string }[] = [
   { key: "overdue", title: "Overdue" },
@@ -24,7 +25,13 @@ function WorkCard({ item }: { item: MyWorkItem }) {
         </p>
         <p className="text-sm text-tg-hint">
           Due {item.dueLabel}
-          {item.updated && <span className="ml-2 rounded bg-amber-500/20 px-1.5 text-xs font-medium text-amber-700 dark:text-amber-400">Updated</span>}
+          {item.updated && (
+            <span className="ml-2 align-middle">
+              <Chip tone="silent" size="sm">
+                Updated
+              </Chip>
+            </span>
+          )}
         </p>
       </div>
       <StatusChip status={item.status} />

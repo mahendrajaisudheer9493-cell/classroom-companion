@@ -1,15 +1,26 @@
 "use client";
 
 import { useEffect } from "react";
-import { waitForWebApp } from "@/app/app/_lib/telegram";
+import { syncTheme, waitForWebApp } from "@/app/app/_lib/telegram";
 
-/** Tells Telegram the Mini App is ready and expands it to full height. */
+/**
+ * ready() + expand(), and keeps the theme in sync: data-theme from Telegram's colorScheme (light/dark
+ * status colours), header and background colours matching the page. Outside Telegram the system
+ * light/dark setting applies (see globals.css).
+ */
 export function TelegramInit() {
   useEffect(() => {
+    let cleanup = () => {};
     waitForWebApp().then((webApp) => {
-      webApp?.ready();
-      webApp?.expand();
+      if (!webApp?.initData) return;
+      webApp.ready();
+      webApp.expand();
+      syncTheme(webApp);
+      const onTheme = () => syncTheme(webApp);
+      webApp.onEvent?.("themeChanged", onTheme);
+      cleanup = () => webApp.offEvent?.("themeChanged", onTheme);
     });
+    return () => cleanup();
   }, []);
   return null;
 }

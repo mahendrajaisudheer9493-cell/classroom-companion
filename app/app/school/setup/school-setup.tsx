@@ -12,7 +12,7 @@ import type { InviteDto, SchoolSetupResponse } from "@/app/app/_lib/types";
 // /app/school/setup (C1): classes + rosters, class teacher per class, teachers and their roles,
 // teacher invites. Everything is checked on the server against the coordinator's own school.
 
-const input = "w-full rounded-lg border border-tg-hint/30 bg-tg-bg px-3 py-2 text-tg-text";
+const input = "w-full rounded-lg border border-tg-hint/30 bg-field px-3 py-2 text-tg-text";
 
 type Grant = { classId: string; role: "SUBJECT_TEACHER" | "CLASS_TEACHER"; subject: string };
 

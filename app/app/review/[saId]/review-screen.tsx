@@ -58,7 +58,7 @@ export function ReviewScreen() {
         <Section title="Your feedback">
           <div className="space-y-2 px-4 py-3">
             <textarea
-              className="w-full rounded-lg border border-tg-hint/30 bg-tg-bg px-3 py-2 text-tg-text"
+              className="w-full rounded-lg border border-tg-hint/30 bg-field px-3 py-2 text-tg-text"
               rows={3}
               value={comment}
               onChange={(e) => setComment(e.target.value)}

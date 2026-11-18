@@ -1,5 +1,6 @@
 import { FilePreview } from "@/app/app/_components/file-preview";
 import { Section } from "@/app/app/_components/ui";
+import { StatusChip } from "@/components/ui/status-chip";
 import type { FeedbackDto, SubmissionDto } from "@/app/app/_lib/types";
 
 const when = (iso: string) =>
@@ -31,9 +32,9 @@ export function FeedbackList({ feedback }: { feedback: FeedbackDto[] }) {
     <Section title="Feedback">
       {feedback.map((f) => (
         <div key={f.id} className="border-b border-tg-hint/15 px-4 py-3 last:border-b-0">
-          <p className={`text-sm font-medium ${f.result === "COMPLETED" ? "text-emerald-700 dark:text-emerald-400" : "text-orange-700 dark:text-orange-400"}`}>
-            {f.result === "COMPLETED" ? "✓ Completed" : "↺ Needs revision"}
-          </p>
+          <div className="mb-1">
+            <StatusChip status={f.result} size="sm" />
+          </div>
           {f.comment && <p className="whitespace-pre-wrap">{f.comment}</p>}
           <p className="text-xs text-tg-hint">
             {f.teacher} · {when(f.at)}

@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { Loading, Notice, Row, Section } from "@/app/app/_components/ui";
+import { SegmentedTabs } from "@/components/ui/segmented-tabs";
 import { apiFetch, type ApiResult } from "@/app/app/_lib/telegram";
 import type { ClassLoadResponse, ClassStrugglingResponse } from "@/app/app/_lib/types";
 
@@ -11,26 +12,16 @@ import type { ClassLoadResponse, ClassStrugglingResponse } from "@/app/app/_lib/
 export type ClassTab = "roster" | "load" | "struggling";
 
 export function Tabs({ tab, onChange }: { tab: ClassTab; onChange: (t: ClassTab) => void }) {
-  const tabs: { key: ClassTab; label: string }[] = [
-    { key: "roster", label: "Roster" },
-    { key: "load", label: "Load" },
-    { key: "struggling", label: "Struggling" },
-  ];
   return (
-    <div role="tablist" className="mb-5 grid grid-cols-3 rounded-lg bg-tg-secondary-bg p-1 text-sm">
-      {tabs.map((t) => (
-        <button
-          key={t.key}
-          type="button"
-          role="tab"
-          aria-selected={tab === t.key}
-          onClick={() => onChange(t.key)}
-          className={`min-h-9 rounded-md font-medium ${tab === t.key ? "bg-tg-bg text-tg-text shadow-sm" : "text-tg-hint"}`}
-        >
-          {t.label}
-        </button>
-      ))}
-    </div>
+    <SegmentedTabs
+      value={tab}
+      onChange={onChange}
+      options={[
+        { value: "roster", label: "Roster" },
+        { value: "load", label: "Load" },
+        { value: "struggling", label: "Struggling" },
+      ]}
+    />
   );
 }
 

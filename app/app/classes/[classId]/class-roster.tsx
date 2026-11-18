@@ -89,7 +89,7 @@ export function ClassRoster() {
       {tab === "struggling" && <ClassStruggling classId={classId} />}
       {tab === "roster" && (
         <>
-          {notice && <p className="mb-4 rounded-lg bg-tg-secondary-bg px-4 py-2 text-sm">{notice}</p>}
+          {notice && <p className="mb-4 rounded-lg bg-surface px-4 py-2 text-sm">{notice}</p>}
 
           <Section title="Class link">
             <div className="space-y-3 px-4 py-3">

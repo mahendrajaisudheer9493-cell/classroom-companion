@@ -6,7 +6,8 @@ import { useCallback, useEffect, useState } from "react";
 import { BackNav } from "@/app/app/_components/nav";
 import { Banner, StatusChip } from "@/app/app/_components/status";
 import { Button, Loading, Notice } from "@/app/app/_components/ui";
-import { apiFetch, type ApiResult } from "@/app/app/_lib/telegram";
+import { apiFetch, haptic, type ApiResult } from "@/app/app/_lib/telegram";
+import { useMainButton } from "@/components/ui/main-button";
 import type { DoubtThreadDto } from "@/app/app/_lib/types";
 
 const when = (iso: string) =>
@@ -26,19 +27,33 @@ export function DoubtThread() {
     load();
   }, [load]);
 
-  if (!thread) return <Loading />;
-  if (!thread.ok) return <Notice error={thread.error} message={thread.message} />;
-  const t = thread.data;
-  const canWrite = t.canReply || t.isOwner;
-
   async function post(path: string, body?: unknown) {
     setBusy(true);
     const r = await apiFetch<{ message: string }>(path, { method: "POST", body: body ? JSON.stringify(body) : undefined });
     setBusy(false);
     setNotice(r.ok ? { text: r.data.message, tone: "info" } : { text: r.message, tone: "error" });
+    if (r.ok) haptic.success();
+    else haptic.error();
     if (r.ok) setText("");
     await load();
   }
+
+  const current = thread?.ok ? thread.data : null;
+  const sendLabel = current?.isOwner ? "Send to teacher" : "Send reply";
+  const send = () => post(`/api/app/doubts/${saId}/message`, { text });
+  // Telegram's MainButton sends the message; outside Telegram the normal button is shown.
+  const nativeMain = useMainButton({
+    text: sendLabel,
+    onClick: send,
+    disabled: busy || !text.trim(),
+    loading: busy,
+    visible: !!current && (current.canReply || current.isOwner),
+  });
+
+  if (!thread) return <Loading />;
+  if (!thread.ok) return <Notice error={thread.error} message={thread.message} />;
+  const t = thread.data;
+  const canWrite = t.canReply || t.isOwner;
 
   return (
     <>
@@ -61,7 +76,7 @@ export function DoubtThread() {
           const mine = t.isOwner ? m.from === "STUDENT" : m.from === "TEACHER";
           return (
             <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
-              <div className={`max-w-[85%] rounded-2xl px-3.5 py-2 ${mine ? "bg-tg-button text-tg-button-text" : "bg-tg-secondary-bg"}`}>
+              <div className={`max-w-[85%] rounded-2xl px-3.5 py-2 ${mine ? "bg-tg-button text-tg-button-text" : "bg-surface"}`}>
                 <p className="whitespace-pre-wrap break-words">{m.text}</p>
                 <p className={`mt-0.5 text-[11px] ${mine ? "opacity-80" : "text-tg-hint"}`}>
                   {m.author} · {when(m.at)}
@@ -74,9 +89,9 @@ export function DoubtThread() {
       </div>
 
       {canWrite && (
-        <div className="sticky bottom-0 -mx-4 bg-tg-bg px-4 pb-4 pt-2">
+        <div className="sticky bottom-0 -mx-4 bg-app px-4 pb-4 pt-2">
           <textarea
-            className="mb-2 w-full rounded-xl border border-tg-hint/30 bg-tg-bg px-3 py-2 text-tg-text"
+            className="mb-2 w-full rounded-xl border border-[var(--color-separator)] bg-surface px-3 py-2 text-tg-text"
             rows={3}
             value={text}
             onChange={(e) => setText(e.target.value)}
@@ -84,9 +99,11 @@ export function DoubtThread() {
             maxLength={2000}
           />
           <div className="flex gap-2">
-            <Button onClick={() => post(`/api/app/doubts/${saId}/message`, { text })} disabled={busy || !text.trim()}>
-              {busy ? "Sending…" : t.isOwner ? "Send to teacher" : "Send reply"}
-            </Button>
+            {!nativeMain && (
+              <Button onClick={send} disabled={busy || !text.trim()}>
+                {busy ? "Sending…" : sendLabel}
+              </Button>
+            )}
             {t.canResolve && (
               <Button variant="secondary" onClick={() => post(`/api/app/doubts/${saId}/resolve`)} disabled={busy}>
                 Mark resolved
