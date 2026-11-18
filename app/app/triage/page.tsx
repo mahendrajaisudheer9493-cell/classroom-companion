@@ -1,19 +1,21 @@
 "use client";
 
+import { Bell, CircleCheckBig, Inbox, MessageCircle, Sparkles, TriangleExclamationPoint } from "lucide-react";
 import Link from "next/link";
-import { useCallback, useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { Suspense, useCallback, useEffect, useState } from "react";
 import { BackNav } from "@/app/app/_components/nav";
-import { Banner, Flags, StatusChip, timeAgo } from "@/app/app/_components/status";
-import { Button, Loading, Notice, Section } from "@/app/app/_components/ui";
-import { CircleCheckBig } from "lucide-react";
-import { EmptyState, List, TONE_CLASS, TRIAGE_GROUP } from "@/components/ui";
+import { Banner, timeAgo } from "@/app/app/_components/status";
+import { Loading, Notice } from "@/app/app/_components/ui";
 import { apiFetch, type ApiResult } from "@/app/app/_lib/telegram";
 import type { NudgeResponse, RiskStudentDto, TriageItemDto, TriageResponse } from "@/app/app/_lib/types";
+import { Button, Collapsible, EmptyState, FlagTags, ListRow, SectionHeader, SegmentedTabs, StatusChip, TONE_CLASS, TRIAGE_GROUP } from "@/components/ui";
 
 type Group = "stuck" | "silent" | "overdue" | "toReview";
-const GROUPS: { key: Group }[] = [{ key: "stuck" }, { key: "silent" }, { key: "overdue" }, { key: "toReview" }];
+const GROUPS: Group[] = ["stuck", "silent", "overdue", "toReview"];
+const isGroup = (g: string | null): g is Group => !!g && (GROUPS as string[]).includes(g);
 
-/** "● Stuck · 3" in the group's colour. */
+/** "Stuck · 3" with the group's icon, in its colour. */
 function GroupTitle({ group, count }: { group: Group; count: number }) {
   const m = TRIAGE_GROUP[group];
   const Icon = m.icon;
@@ -25,15 +27,17 @@ function GroupTitle({ group, count }: { group: Group; count: number }) {
   );
 }
 
-// /app/triage: "talk to these 4 today". Most urgent first, one-tap actions.
-export default function TriagePage() {
-  const [classId, setClassId] = useState<string | null>(null);
+// /app/triage[?group=stuck]: who needs attention, most urgent first, one-tap actions.
+function Triage() {
+  const groupParam = useSearchParams().get("group");
+  const only = isGroup(groupParam) ? groupParam : null;
+  const [classId, setClassId] = useState<string>("all");
   const [data, setData] = useState<ApiResult<TriageResponse> | null>(null);
-  const [notice, setNotice] = useState<string | null>(null);
+  const [notice, setNotice] = useState<{ text: string; tone: "success" | "error" } | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
 
   const load = useCallback(
-    () => apiFetch<TriageResponse>(`/api/app/triage${classId ? `?classId=${classId}` : ""}`).then(setData),
+    () => apiFetch<TriageResponse>(`/api/app/triage${classId !== "all" ? `?classId=${classId}` : ""}`).then(setData),
     [classId],
   );
   useEffect(() => {
@@ -43,7 +47,7 @@ export default function TriagePage() {
   async function act(key: string, call: () => Promise<ApiResult<{ message: string }>>) {
     setBusy(key);
     const r = await call();
-    setNotice(r.ok ? r.data.message : r.message);
+    setNotice(r.ok ? { text: r.data.message, tone: "success" } : { text: r.message, tone: "error" });
     setBusy(null);
     await load();
   }
@@ -57,84 +61,93 @@ export default function TriagePage() {
   if (!data) return <Loading />;
   if (!data.ok) return <Notice error={data.error} message={data.message} />;
   const t = data.data;
-  const empty = GROUPS.every((g) => t[g.key].length === 0);
+  const groups = only ? [only] : GROUPS;
+  const empty = groups.every((g) => t[g].length === 0);
+  const className = t.classes.find((c) => c.id === classId)?.name ?? null;
 
   return (
     <>
       <BackNav />
-      <h1 className="mb-3 text-xl font-semibold">Triage</h1>
+      <h1 className="text-large font-bold">{only ? TRIAGE_GROUP[only].label : "Triage"}</h1>
+      <p className="mb-4 text-body text-tg-hint">
+        {only ? (
+          <Link href="/app/triage" className="text-tg-link">
+            Show all groups
+          </Link>
+        ) : (
+          "Who needs you today, most urgent first."
+        )}
+      </p>
 
       {t.classes.length > 1 && (
-        <div className="-mx-4 mb-4 flex gap-2 overflow-x-auto px-4">
-          {[{ id: null, name: "All classes" }, ...t.classes].map((c) => (
-            <button
-              key={c.id ?? "all"}
-              type="button"
-              onClick={() => setClassId(c.id)}
-              className={`min-h-9 shrink-0 rounded-full px-4 text-sm font-medium ${classId === c.id ? "bg-tg-button text-tg-button-text" : "bg-surface"}`}
-            >
-              {c.name}
-            </button>
-          ))}
-        </div>
+        <SegmentedTabs value={classId} onChange={setClassId} options={[{ value: "all", label: "All" }, ...t.classes.map((c) => ({ value: c.id, label: c.name }))]} />
       )}
 
-      {notice && <Banner>{notice}</Banner>}
+      {notice && <Banner tone={notice.tone}>{notice.text}</Banner>}
 
-      <AtRisk className={t.classes.find((c) => c.id === classId)?.name ?? null} />
+      {!only && <AtRisk className={className} />}
 
       {empty ? (
-        <EmptyState icon={CircleCheckBig} tone="completed" title="All clear" detail="Nobody needs you right now." />
+        <EmptyState
+          icon={only ? CircleCheckBig : Sparkles}
+          tone="completed"
+          title={only ? `No one is ${TRIAGE_GROUP[only].label.toLowerCase()} right now` : "All clear"}
+          detail={only ? undefined : "Nobody needs you right now. New problems will show up here first."}
+        />
       ) : (
-        GROUPS.filter((g) => t[g.key].length > 0).map((g) => (
-          <List key={g.key} title={<GroupTitle group={g.key} count={t[g.key].length} />}>
-            {t[g.key].map((i) => (
-              <div key={`${g.key}:${i.saId}`} className="border-b border-tg-hint/15 px-4 py-3 last:border-b-0">
-                <div className="flex items-start gap-2">
-                  <div className="min-w-0 flex-1">
-                    <p className="font-medium">
-                      {i.studentName} <span className="font-normal text-tg-hint">({i.className})</span>
-                    </p>
-                    <Link href={`/app/assignments/${i.assignmentId}`} className="block truncate text-sm text-tg-link">
-                      {i.assignment}
-                    </Link>
-                    <p className="text-xs text-tg-hint">
-                      Due {i.dueLabel} · {g.key === "stuck" && i.since ? `stuck since ${timeAgo(i.since)}` : `last activity ${timeAgo(i.lastActivityAt)}`}
-                    </p>
-                  </div>
-                  <StatusChip status={i.status} />
-                </div>
-                <div className="mt-1.5">
-                  <Flags flags={i.flags.filter((f) => !(g.key === "overdue" && f === "overdue"))} />
-                </div>
-                <div className="mt-2 flex flex-wrap gap-2">
-                  {g.key === "stuck" && (
-                    <>
-                      <Link href={`/app/doubts/${i.saId}`} className="flex min-h-10 items-center rounded-lg bg-tg-button px-3.5 text-sm font-medium text-tg-button-text">
-                        Reply
+        groups
+          .filter((g) => t[g].length > 0)
+          .map((g) => (
+            <section key={g} className={`mb-6 ${TONE_CLASS[TRIAGE_GROUP[g].tone]}`}>
+              <SectionHeader title={<GroupTitle group={g} count={t[g].length} />} />
+              <div className="overflow-hidden rounded-2xl bg-surface shadow-[inset_3px_0_0_var(--tone)]">
+                {t[g].map((i) => (
+                  <ListRow
+                    key={`${g}:${i.saId}`}
+                    avatar={i.studentName}
+                    title={i.studentName}
+                    subtitle={
+                      <Link href={`/app/assignments/${i.assignmentId}`} className="text-tg-link">
+                        {i.assignment} · {i.className}
                       </Link>
-                      {i.status === "BLOCKED" && (
-                        <Button variant="secondary" onClick={() => resolve(i)} disabled={busy !== null}>
-                          Mark resolved
+                    }
+                  >
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <StatusChip status={i.status} size="sm" />
+                      <FlagTags flags={i.flags.filter((f) => !(g === "overdue" && f === "overdue"))} />
+                      <span className="text-caption text-tg-hint">
+                        {g === "stuck" && i.since ? `stuck ${timeAgo(i.since)}` : i.lastActivityAt ? `active ${timeAgo(i.lastActivityAt)}` : "no activity yet"}
+                      </span>
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {g === "stuck" && (
+                        <>
+                          <Button size="pill" variant="tonal" tone="accent" icon={MessageCircle} href={`/app/doubts/${i.saId}`}>
+                            Reply
+                          </Button>
+                          {i.status === "BLOCKED" && (
+                            <Button size="pill" variant="tonal" tone="completed" icon={CircleCheckBig} onClick={() => resolve(i)} disabled={busy !== null}>
+                              Mark resolved
+                            </Button>
+                          )}
+                        </>
+                      )}
+                      {(g === "silent" || g === "overdue") && !i.flags.includes("not_on_telegram") && (
+                        <Button size="pill" variant="tonal" tone="accent" icon={Bell} onClick={() => nudge(i)} loading={busy === `nudge:${i.saId}`} disabled={busy !== null}>
+                          Nudge
                         </Button>
                       )}
-                    </>
-                  )}
-                  {(g.key === "silent" || g.key === "overdue") && !i.flags.includes("not_on_telegram") && (
-                    <Button variant="secondary" onClick={() => nudge(i)} disabled={busy !== null}>
-                      {busy === `nudge:${i.saId}` ? "Nudging…" : "Nudge"}
-                    </Button>
-                  )}
-                  {g.key === "toReview" && (
-                    <Link href={`/app/review/${i.saId}`} className="flex min-h-10 items-center rounded-lg bg-tg-button px-3.5 text-sm font-medium text-tg-button-text">
-                      Review
-                    </Link>
-                  )}
-                </div>
+                      {g === "toReview" && (
+                        <Button size="pill" variant="tonal" tone="review" icon={Inbox} href={`/app/review/${i.saId}`}>
+                          Review
+                        </Button>
+                      )}
+                    </div>
+                  </ListRow>
+                ))}
               </div>
-            ))}
-          </List>
-        ))
+            </section>
+          ))
       )}
     </>
   );
@@ -149,19 +162,28 @@ function AtRisk({ className }: { className: string | null }) {
   const shown = (students ?? []).filter((s) => !className || s.className === className);
   if (shown.length === 0) return null;
   return (
-    <Section title={`⚠ At risk this week · ${shown.length}`}>
+    <Collapsible
+      tone="overdue"
+      icon={<TriangleExclamationPoint aria-hidden size={18} />}
+      title={`At risk this week · ${shown.length} student${shown.length === 1 ? "" : "s"}`}
+    >
       {shown.map((s) => (
-        <Link key={s.studentId} href={`/app/students/${s.studentId}`} className="block border-b border-tg-hint/15 px-4 py-3 last:border-b-0 active:opacity-70">
-          <p className="font-medium">
-            {s.name} <span className="font-normal text-tg-hint">({s.className})</span>
-          </p>
-          <ul className="text-sm text-tg-hint">
+        <ListRow key={s.studentId} href={`/app/students/${s.studentId}`} avatar={s.name} title={`${s.name} (${s.className})`}>
+          <ul className="space-y-0.5 text-caption text-tg-hint">
             {s.reasons.map((r) => (
               <li key={r}>{r}</li>
             ))}
           </ul>
-        </Link>
+        </ListRow>
       ))}
-    </Section>
+    </Collapsible>
+  );
+}
+
+export default function TriagePage() {
+  return (
+    <Suspense fallback={<Loading />}>
+      <Triage />
+    </Suspense>
   );
 }

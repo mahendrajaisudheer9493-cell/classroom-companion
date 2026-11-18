@@ -1,11 +1,12 @@
 "use client";
 
-import Link from "next/link";
+import { CircleCheckBig, Settings, TrendingDown } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { HealthLine, WorstBadge } from "@/app/app/_components/health";
 import { BackNav } from "@/app/app/_components/nav";
-import { Loading, Notice, Row, Section } from "@/app/app/_components/ui";
+import { Loading, Notice } from "@/app/app/_components/ui";
+import { Button, Card, ListRow, ProgressBar, SectionHeader } from "@/components/ui";
 import { apiFetch, type ApiResult } from "@/app/app/_lib/telegram";
 import type { SchoolHealthResponse } from "@/app/app/_lib/types";
 
@@ -26,43 +27,52 @@ export function SchoolHealth() {
   return (
     <>
       <BackNav />
-      <h1 className="text-xl font-semibold">School health</h1>
-      <p className="mb-4 text-sm text-tg-hint">{school.name}</p>
+      <h1 className="text-large font-bold">School health</h1>
+      <p className="mb-4 text-body text-tg-hint">{school.name}</p>
 
-      <p className="mb-4 rounded-lg bg-surface px-4 py-2.5 text-sm">
-        {worst ? (
-          <>
-            ⚠ <b>{worst.name}</b> is falling behind: {worst.stats.overduePct ?? 0}% overdue, {worst.stats.stuck} stuck.
-          </>
-        ) : (
-          "No class is falling behind ✓"
-        )}
-      </p>
+      {worst ? (
+        <Card tone="stuck" className="mb-6 flex items-start gap-3">
+          <TrendingDown aria-hidden size={22} className="mt-0.5 shrink-0" />
+          <div>
+            <p className="text-headline font-semibold">{worst.name} is falling behind</p>
+            <p className="text-body">
+              {worst.stats.overduePct ?? 0}% overdue · {worst.stats.stuck} stuck
+            </p>
+          </div>
+        </Card>
+      ) : (
+        <Card tone="completed" className="mb-6 flex items-center gap-3">
+          <CircleCheckBig aria-hidden size={22} />
+          <p className="text-headline font-semibold">No class is falling behind</p>
+        </Card>
+      )}
 
-      <Section title={`Classes (${classes.length})`}>
+      <SectionHeader title={`Classes · ${classes.length}`} />
+      <div className="mb-6 overflow-hidden rounded-2xl bg-surface">
         {classes.map((c) => (
-          <Link key={c.id} href={`/app/school/classes/${c.id}`} className="block active:opacity-70">
-            <Row>
-              <div className="min-w-0 flex-1">
-                <p className="font-medium">
-                  {c.name} <span className="text-sm font-normal text-tg-hint">· linked {c.linked}/{c.total}</span>
-                </p>
-                <HealthLine stats={c.stats} />
+          <ListRow
+            key={c.id}
+            href={`/app/school/classes/${c.id}`}
+            avatar={c.name}
+            title={c.name}
+            subtitle={`On Telegram ${c.linked} / ${c.total}`}
+            className={c.id === worstClassId ? "tone-stuck shadow-[inset_3px_0_0_var(--tone)]" : undefined}
+          >
+            {c.id === worstClassId && (
+              <div className="mb-1.5">
+                <WorstBadge />
               </div>
-              {c.id === worstClassId && <WorstBadge />}
-              <span className="text-tg-hint">›</span>
-            </Row>
-          </Link>
+            )}
+            <HealthLine stats={c.stats} />
+            <ProgressBar className="mt-2" value={c.linked} max={c.total} tone={c.total > 0 && c.linked === c.total ? "completed" : "accent"} />
+          </ListRow>
         ))}
-      </Section>
+      </div>
 
-      <Link
-        href={`/app/school/setup${schoolId ? `?schoolId=${schoolId}` : ""}`}
-        className="flex min-h-11 items-center justify-center rounded-xl border border-tg-hint/25 px-3 font-medium text-tg-link active:opacity-70"
-      >
-        School setup: classes, teachers, invites ›
-      </Link>
-      <p className="mt-3 text-xs text-tg-hint">% seen = delivered work the student has acted on in its latest version. % overdue = past due and not handed in.</p>
+      <Button href={`/app/school/setup${schoolId ? `?schoolId=${schoolId}` : ""}`} variant="secondary" icon={Settings} block>
+        School setup: classes, teachers, invites
+      </Button>
+      <p className="mt-3 px-1 text-caption text-tg-hint">Seen = delivered work the student has acted on in its latest version. Overdue = past due and not handed in.</p>
     </>
   );
 }

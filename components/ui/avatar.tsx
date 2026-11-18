@@ -5,6 +5,7 @@ import { cn } from "./cn";
 const COLORS = ["#e17076", "#eda86c", "#a695e7", "#7bc862", "#6ec9cb", "#65aadd", "#ee7aae", "#d29c58"];
 
 export function initials(name: string): string {
+  if (/^\S{1,3}$/.test(name.trim())) return name.trim().toUpperCase(); // class names like "8A"
   const parts = name.replace(/^(Mr|Mrs|Ms|Dr)\.?\s+/i, "").trim().split(/\s+/).filter(Boolean);
   return ((parts[0]?.[0] ?? "?") + (parts.length > 1 ? parts[parts.length - 1][0] : "")).toUpperCase();
 }

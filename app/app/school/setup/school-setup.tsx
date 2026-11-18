@@ -68,7 +68,7 @@ export function SchoolSetup() {
         }
       />
 
-      <Section title={`Teachers (${d.teachers.length})`}>
+      <Section title={`Teachers · ${d.teachers.length}`}>
         {d.teachers.map((t) => (
           <div key={t.userId} className="border-b border-tg-hint/15 px-4 py-3 last:border-b-0">
             <p className="font-medium">
@@ -134,7 +134,7 @@ function ClassesSection({
   }
 
   return (
-    <Section title={`Classes (${data.classes.length})`}>
+    <Section title={`Classes · ${data.classes.length}`}>
       {data.classes.map((c) => (
         <div key={c.id} className="space-y-2 border-b border-tg-hint/15 px-4 py-3">
           <p className="font-medium">

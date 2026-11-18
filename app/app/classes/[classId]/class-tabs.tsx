@@ -1,9 +1,9 @@
 "use client";
 
-import Link from "next/link";
+import { CalendarCheck, CircleCheckBig, TriangleExclamationPoint } from "lucide-react";
 import { useEffect, useState } from "react";
-import { Loading, Notice, Row, Section } from "@/app/app/_components/ui";
-import { SegmentedTabs } from "@/components/ui/segmented-tabs";
+import { Loading, Notice } from "@/app/app/_components/ui";
+import { Chip, EmptyState, List, ListRow, SectionHeader, SegmentedTabs } from "@/components/ui";
 import { apiFetch, type ApiResult } from "@/app/app/_lib/telegram";
 import type { ClassLoadResponse, ClassStrugglingResponse } from "@/app/app/_lib/types";
 
@@ -34,24 +34,34 @@ export function ClassLoad({ classId }: { classId: string }) {
   if (!data) return <Loading />;
   if (!data.ok) return <Notice error={data.error} message={data.message} />;
   const { days } = data.data;
-  if (days.length === 0) return <p className="py-6 text-center text-tg-hint">Nothing due from today on.</p>;
+  if (days.length === 0) return <EmptyState icon={CalendarCheck} tone="completed" title="Nothing due from today on" />;
   return (
     <>
-      <p className="mb-3 text-sm text-tg-hint">All subjects, by due date. Days with 3 or more are flagged.</p>
+      <p className="mb-4 px-1 text-caption text-tg-hint">Every subject&apos;s work by due date. Days with 3 or more are flagged.</p>
       {days.map((d) => (
-        <Section key={d.date} title={`${d.label} · ${d.items.length} due${d.heavy ? " · ⚠ Heavy day" : ""}`}>
-          {d.items.map((i) => (
-            <Row key={i.id}>
-              <span className="w-20 shrink-0 text-sm font-medium">{i.subject}</span>
-              <span className="min-w-0 flex-1 truncate">{i.title}</span>
-              <span className="shrink-0 text-xs text-tg-hint">{i.dueLabel.split(", ")[1]}</span>
-            </Row>
-          ))}
-        </Section>
+        <section key={d.date} className={`mb-6 ${d.heavy ? "tone-overdue" : ""}`}>
+          <SectionHeader
+            title={`${d.label} · ${d.items.length} due`}
+            action={
+              d.heavy && (
+                <Chip tone="overdue" icon={TriangleExclamationPoint} size="sm">
+                  Heavy day
+                </Chip>
+              )
+            }
+          />
+          <div className={`overflow-hidden rounded-2xl bg-surface ${d.heavy ? "shadow-[inset_3px_0_0_var(--tone)]" : ""}`}>
+            {d.items.map((i) => (
+              <ListRow key={i.id} avatar={i.subject} title={i.title} subtitle={i.subject} detail={i.dueLabel.split(", ")[1]} />
+            ))}
+          </div>
+        </section>
       ))}
     </>
   );
 }
+
+const PROBLEM_TONE = { stuck: "stuck", silent: "silent", overdue: "overdue" } as const;
 
 /** CT2: stuck / silent / overdue in 2 or more subjects. */
 export function ClassStruggling({ classId }: { classId: string }) {
@@ -62,26 +72,27 @@ export function ClassStruggling({ classId }: { classId: string }) {
   if (!data) return <Loading />;
   if (!data.ok) return <Notice error={data.error} message={data.message} />;
   const { students } = data.data;
+  if (students.length === 0) {
+    return <EmptyState icon={CircleCheckBig} tone="completed" title="Nobody is struggling in 2 or more subjects" />;
+  }
   return (
     <>
-      <p className="mb-3 text-sm text-tg-hint">Students who are stuck, silent or overdue in 2 or more subjects.</p>
-      {students.length === 0 ? (
-        <p className="py-6 text-center text-tg-hint">Nobody is struggling in 2+ subjects ✓</p>
-      ) : (
-        <Section title={`Struggling (${students.length})`}>
-          {students.map((s) => (
-            <Link key={s.studentId} href={`/app/students/${s.studentId}`} className="block active:opacity-70">
-              <Row>
-                <div className="min-w-0 flex-1">
-                  <p className="font-medium">{s.name}</p>
-                  <p className="text-sm text-tg-hint">{s.summary}</p>
-                </div>
-                <span className="text-tg-hint">›</span>
-              </Row>
-            </Link>
-          ))}
-        </Section>
-      )}
+      <p className="mb-4 px-1 text-caption text-tg-hint">Students who are stuck, silent or overdue in 2 or more subjects. Tap a name for all their work.</p>
+      <List title={`Struggling · ${students.length}`}>
+        {students.map((s) => (
+          <ListRow key={s.studentId} href={`/app/students/${s.studentId}`} avatar={s.name} title={s.name} subtitle={`${s.subjects.length} subjects`}>
+            <div className="flex flex-wrap gap-1">
+              {s.subjects.flatMap((sub) =>
+                sub.problems.map((p) => (
+                  <Chip key={`${sub.subject}-${p}`} tone={PROBLEM_TONE[p]} size="sm">
+                    {sub.subject}: {p}
+                  </Chip>
+                )),
+              )}
+            </div>
+          </ListRow>
+        ))}
+      </List>
     </>
   );
 }

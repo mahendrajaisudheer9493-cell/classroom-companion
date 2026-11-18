@@ -48,7 +48,9 @@ export function ListRow({ avatar, leading, title, subtitle, detail, children, hr
   const showChevron = chevron ?? !!href;
   const body = (
     <>
-      {(avatar || leading) && <div className="flex shrink-0 items-center py-2.5 pl-4">{avatar ? <Avatar name={avatar} /> : leading}</div>}
+      {(avatar || leading) && (
+        <div className={cn("flex shrink-0 pl-4", children ? "items-start pt-3" : "items-center py-2.5")}>{avatar ? <Avatar name={avatar} /> : leading}</div>
+      )}
       <div className={cn("list-row-body flex min-h-11 min-w-0 flex-1 items-center gap-3 py-2.5 pr-3", avatar || leading ? "pl-3" : "pl-4")}>
         <div className="min-w-0 flex-1">
           <div className="truncate text-body font-medium text-tg-text">{title}</div>

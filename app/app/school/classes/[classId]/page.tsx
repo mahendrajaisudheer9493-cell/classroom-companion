@@ -1,11 +1,11 @@
 "use client";
 
-import Link from "next/link";
 import { useParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { HealthLine, WorstBadge } from "@/app/app/_components/health";
 import { BackNav } from "@/app/app/_components/nav";
-import { Loading, Notice, Row, Section } from "@/app/app/_components/ui";
+import { Loading, Notice } from "@/app/app/_components/ui";
+import { Card, ListRow, ProgressBar, SectionHeader } from "@/components/ui";
 import { apiFetch, type ApiResult } from "@/app/app/_lib/telegram";
 import type { ClassHealthResponse } from "@/app/app/_lib/types";
 
@@ -23,28 +23,44 @@ function ClassHealth() {
   return (
     <>
       <BackNav fallbackHref="/app/school" />
-      <h1 className="text-xl font-semibold">{d.class.name}</h1>
-      <p className="mb-1 text-sm text-tg-hint">
-        {d.school.name} · linked {d.class.linked}/{d.class.total}
-      </p>
-      <div className="mb-5">
+      <Card className="mb-6">
+        <p className="text-caption font-medium text-tg-hint">{d.school.name}</p>
+        <h1 className="mb-2 text-title font-bold">{d.class.name}</h1>
         <HealthLine stats={d.stats} />
-      </div>
-      <Section title="By subject">
-        {d.subjects.length === 0 && <p className="px-4 py-3 text-sm text-tg-hint">No published assignments yet.</p>}
+        <ProgressBar
+          className="mt-3"
+          value={d.class.linked}
+          max={d.class.total}
+          label={
+            <>
+              <span>On Telegram</span>
+              <span className="tabular-nums">
+                {d.class.linked} / {d.class.total}
+              </span>
+            </>
+          }
+        />
+      </Card>
+      <SectionHeader title="By subject" />
+      <div className="mb-6 overflow-hidden rounded-2xl bg-surface">
+        {d.subjects.length === 0 && <p className="px-4 py-3 text-body text-tg-hint">No published assignments yet.</p>}
         {d.subjects.map((s) => (
-          <Link key={s.subject} href={`/app/school/classes/${d.class.id}/subjects/${encodeURIComponent(s.subject)}`} className="block active:opacity-70">
-            <Row>
-              <div className="min-w-0 flex-1">
-                <p className="font-medium">{s.subject}</p>
-                <HealthLine stats={s.stats} />
+          <ListRow
+            key={s.subject}
+            href={`/app/school/classes/${d.class.id}/subjects/${encodeURIComponent(s.subject)}`}
+            avatar={s.subject}
+            title={s.subject}
+            className={s.subject === d.worstSubject ? "tone-stuck shadow-[inset_3px_0_0_var(--tone)]" : undefined}
+          >
+            {s.subject === d.worstSubject && (
+              <div className="mb-1.5">
+                <WorstBadge />
               </div>
-              {s.subject === d.worstSubject && <WorstBadge />}
-              <span className="text-tg-hint">›</span>
-            </Row>
-          </Link>
+            )}
+            <HealthLine stats={s.stats} />
+          </ListRow>
         ))}
-      </Section>
+      </div>
     </>
   );
 }

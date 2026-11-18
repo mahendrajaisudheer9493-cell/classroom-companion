@@ -134,7 +134,8 @@
 @utility tone-neutral { --tone: var(--tg-theme-hint-color, var(--fb-hint)); }
 @utility tinted {
   color: var(--tone);
-  background-color: color-mix(in srgb, var(--tone) var(--tone-mix), transparent);
+  /* Mixed with the section colour (not transparent) so tints stay clean on the grey page too. */
+  background-color: color-mix(in srgb, var(--tone) var(--tone-mix), var(--color-surface));
 }
 @utility text-tone { color: var(--tone); }
 @utility bg-tone { background-color: var(--tone); }

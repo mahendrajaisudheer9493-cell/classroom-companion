@@ -13,3 +13,6 @@ export { SegmentedTabs } from "./segmented-tabs";
 export { Skeleton, SkeletonList } from "./skeleton";
 export { FLAG, STUDENT_STATUS, TONE_CLASS, TRIAGE_GROUP, statusMeta, type StatusMeta, type Tone } from "./status";
 export { Chip, FlagTags, StatusChip } from "./status-chip";
+export { Collapsible } from "./collapsible";
+export { StatusBar } from "./status-bar";
+export { Stepper, stepFor, STEPS } from "./stepper";

@@ -4,9 +4,11 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState, type ReactNode } from "react";
 import { BackNav } from "@/app/app/_components/nav";
-import { Button, Loading, Notice, Section } from "@/app/app/_components/ui";
+import { Loading, Notice, Section } from "@/app/app/_components/ui";
 import { Banner } from "@/app/app/_components/status";
 import { apiFetch, haptic, type ApiResult } from "@/app/app/_lib/telegram";
+import { Send } from "lucide-react";
+import { Button as BaseButton } from "@/components/ui/button";
 import { useMainButton } from "@/components/ui/main-button";
 import type { AssignmentFormResponse, CreateAssignmentBody, CreateAssignmentResponse } from "@/app/app/_lib/types";
 
@@ -132,9 +134,9 @@ export function NewAssignmentForm() {
 
       {error && <Banner tone="error">{error}</Banner>}
       {!nativeMain && (
-        <Button onClick={submit} disabled={!canSend}>
-          {busy ? "Sending…" : "Send to students"}
-        </Button>
+        <BaseButton block icon={Send} onClick={submit} disabled={!canSend} loading={busy}>
+          Send to students
+        </BaseButton>
       )}
     </>
   );

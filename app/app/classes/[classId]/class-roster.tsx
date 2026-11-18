@@ -5,6 +5,7 @@ import { useParams } from "next/navigation";
 import { useCallback, useEffect, useState } from "react";
 import { BackNav } from "@/app/app/_components/nav";
 import { RosterPaste, rosterCount } from "@/app/app/_components/roster-paste";
+import { Avatar } from "@/components/ui/avatar";
 import { ClassLoad, ClassStruggling, Tabs, type ClassTab } from "@/app/app/classes/[classId]/class-tabs";
 import { Button, Loading, Notice, Row, Section } from "@/app/app/_components/ui";
 import { apiFetch, confirmDialog, shareInTelegram, type ApiResult } from "@/app/app/_lib/telegram";
@@ -125,14 +126,14 @@ export function ClassRoster() {
             </div>
           </Section>
 
-          <Section title={`Students (${total})`}>
+          <Section title={`Students · ${linked} of ${total} on Telegram`}>
             {students.map((s) => (
               <Row key={s.id}>
-                <span className="w-6 text-sm text-tg-hint">{s.rollNo}</span>
+                <Avatar name={s.name} />
                 <Link href={`/app/students/${s.id}`} className="min-w-0 flex-1 active:opacity-70">
-                  <p className="font-medium">{s.name}</p>
-                  <p className="truncate text-xs text-tg-hint">
-                    {s.linked ? `Linked${s.linkedAs ? ` · ${s.linkedAs}` : ""}` : "Not linked yet"}
+                  <p className="truncate text-body font-medium">{s.name}</p>
+                  <p className="truncate text-caption text-tg-hint">
+                    Roll {s.rollNo} · {s.linked ? `on Telegram${s.linkedAs ? ` as ${s.linkedAs}` : ""}` : "not on Telegram yet"}
                   </p>
                 </Link>
                 {s.linked && (
