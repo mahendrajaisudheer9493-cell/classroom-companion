@@ -4,9 +4,8 @@ import { ChevronLeft } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { waitForWebApp } from "@/app/app/_lib/telegram";
+import { inTelegram, tgSafe, tgSupports, waitForWebApp, type TelegramWebApp } from "@/app/app/_lib/telegram";
 
-type BackButtonApi = { show(): void; hide(): void; onClick(cb: () => void): void; offClick(cb: () => void): void };
 
 /**
  * Telegram's native BackButton (top-left in the Mini App header). Outside Telegram, a plain link.
@@ -17,19 +16,29 @@ export function BackNav({ fallbackHref = "/app", label = "Back" }: { fallbackHre
   const [native, setNative] = useState(false);
 
   useEffect(() => {
-    let button: BackButtonApi | undefined;
+    let cancelled = false;
+    let button: NonNullable<TelegramWebApp["BackButton"]> | undefined;
     const goBack = () => (window.history.length > 1 ? router.back() : router.push(fallbackHref));
     waitForWebApp().then((webApp) => {
-      const b = (webApp as unknown as { initData?: string; BackButton?: BackButtonApi } | null);
-      if (!b?.initData || !b.BackButton) return;
-      button = b.BackButton;
-      button.onClick(goBack);
-      button.show();
-      setNative(true);
+      if (cancelled || !inTelegram(webApp) || !tgSupports(webApp, "6.1")) return;
+      const b = webApp.BackButton;
+      if (!b || typeof b.onClick !== "function" || typeof b.show !== "function") return;
+      const attached = tgSafe("BackButton.show", () => {
+        b.onClick!(goBack);
+        b.show!();
+        return true;
+      });
+      if (attached) {
+        button = b;
+        setNative(true);
+      }
     });
     return () => {
-      button?.offClick(goBack);
-      button?.hide();
+      cancelled = true;
+      if (!button) return;
+      const b = button;
+      tgSafe("BackButton.offClick", () => b.offClick?.(goBack));
+      tgSafe("BackButton.hide", () => b.hide?.());
     };
   }, [router, fallbackHref]);
 

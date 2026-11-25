@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { attachMainButton, type MainButtonController } from "@/app/app/_lib/main-button";
 import { haptic, waitForWebApp } from "@/app/app/_lib/telegram";
 
 /**
- * Telegram's MainButton (the big bottom button) for a form's main action. Returns true when the
- * native button is shown, so the page can hide its own copy; outside Telegram it returns false and
- * the page renders a normal <Button>.
+ * Telegram's MainButton (the big bottom button) for a form's main action. Returns true while the
+ * native button is in use, so the page hides its own copy. Outside Telegram, on old clients, or if
+ * any SDK call fails, it returns false and the page shows its normal in-page button.
+ * Never calls the SDK during render; effects only ever return cleanup functions.
  */
 export function useMainButton({ text, onClick, disabled, loading, visible = true }: {
   text: string;
@@ -16,42 +18,43 @@ export function useMainButton({ text, onClick, disabled, loading, visible = true
   visible?: boolean;
 }): boolean {
   const [native, setNative] = useState(false);
+  const controller = useRef<MainButtonController | null>(null);
   const handler = useRef(onClick);
   useEffect(() => {
     handler.current = onClick;
   }, [onClick]);
 
+  // Attach once.
   useEffect(() => {
     let cancelled = false;
-    let mb: NonNullable<Awaited<ReturnType<typeof waitForWebApp>>>["MainButton"];
     const click = () => {
       haptic.tap();
-      handler.current();
+      try {
+        handler.current();
+      } catch (err) {
+        console.error("[telegram] MainButton action failed", err);
+      }
     };
-    waitForWebApp().then((w) => {
-      if (cancelled || !w?.initData || !w.MainButton) return;
-      mb = w.MainButton;
-      mb.onClick(click);
-      setNative(true);
+    waitForWebApp().then((webApp) => {
+      if (cancelled) return;
+      controller.current = attachMainButton(webApp, click);
+      setNative(controller.current !== null);
     });
     return () => {
       cancelled = true;
-      mb?.offClick(click);
-      mb?.hide();
+      controller.current?.destroy();
+      controller.current = null;
     };
   }, []);
 
+  // Keep it in sync; fall back to the in-page button if an update fails.
   useEffect(() => {
-    if (!native) return;
-    const mb = window.Telegram?.WebApp?.MainButton;
-    if (!mb) return;
-    mb.setText(text);
-    if (!visible) return mb.hide();
-    mb.show();
-    if (disabled) mb.disable();
-    else mb.enable();
-    if (loading) mb.showProgress(false);
-    else mb.hideProgress();
+    if (!native || !controller.current) return;
+    if (!controller.current.update({ text, disabled, loading, visible })) {
+      controller.current.destroy();
+      controller.current = null;
+      setNative(false);
+    }
   }, [native, text, disabled, loading, visible]);
 
   return native;

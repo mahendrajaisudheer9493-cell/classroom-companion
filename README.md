@@ -211,6 +211,7 @@ Switch: `QUIET_HOURS_ENABLED=false` (for testing at night only).
 | Unlinked user messages the bot or opens the app | Told how to join ("Ask your teacher for your class link…") | `lib/bot/texts.ts`, `app/app/_components/ui.tsx` |
 | Wrong, expired or used code or invite | "That code doesn't match any class…" / "This class link has expired…". Nothing is linked | `lib/domain/linking.ts` |
 | Name already claimed | "This name is already linked. Ask your teacher." The teacher can unlink it | `lib/domain/linking.ts` |
+| Telegram SDK call fails (old client, unsupported method or option) | Every call is feature-checked (`isVersionAtLeast`, method exists), never made during render, and wrapped in try/catch; if the MainButton or BackButton can't be used, the page shows its own button or back link. A page that still crashes shows "This screen hit a problem" with **Try again**, and the error is reported as `client.error` | `app/app/_lib/telegram.ts`, `app/app/_lib/main-button.ts`, `app/app/error.tsx` |
 | Missing file (Telegram no longer has it) | Preview shows "Telegram no longer has this file." (404) or "Couldn't fetch the file from Telegram." (502) | `app/api/files/[submissionId]/route.ts` |
 | Assignment cancelled while messages are queued | Unsent cards, updates and reminders for it are dropped; students who saw it get "Cancelled" | `lib/domain/assignments.ts` |
 
@@ -295,6 +296,7 @@ Vercel → Project → **Logs** (or **Deployments → a deployment → Runtime L
 | `feedback.sent` | `lib/domain/teacher-actions.ts` (review feedback and [Checked in class]) |
 | `model.failure` | `lib/llm/client.ts` (timeout, error, invalid output), `lib/llm/phrase.ts` (unsafe reminder text) |
 | `access.denied` | `lib/http.ts`, `lib/auth/request-user.ts`, `lib/bot/bot.ts`, `lib/domain/student-actions.ts`, `lib/domain/acknowledge.ts`, `/api/telegram` (bad secret), `/api/tick` (bad cron secret) |
+| `client.error` | `app/api/client-error/route.ts` (a Mini App crash or uncaught error on a phone: message, stack, page, Telegram version and platform) |
 | also | `risk.asked`, `roster.updated`, `tick.done`, `queue.send_failed`, `queue.dead`, `student.status_changed`, `class.created`, `invite.created`, `class_teacher.set`, `membership.removed` |
 
 ### Rollback
@@ -407,7 +409,7 @@ Mrs. Rao is also class teacher of 8A and coordinator of Greenfield, so the same 
 ## Tests
 
 ```bash
-npm run typecheck && npm run lint && npm test   # 164 tests in 19 files
+npm run typecheck && npm run lint && npm test   # 175 tests in 20 files
 npm run build                                   # production build
 npm run eval                                    # real-model eval (costs a fraction of a cent)
 npm run demo:unauthorized                       # access checks against the deployed app
@@ -433,6 +435,7 @@ npm run demo:unauthorized                       # access checks against the depl
 | `tests/integration/student-flow.test.ts` | Low confidence and model failure → buttons, nothing changes; stuck → teacher alert; same file twice → one submission; cancelled assignment refused; expired button does nothing |
 | `tests/integration/teacher-flow.test.ts` | Feedback → status + queued message; 22:30 reply held until 07:00; another student's file → 403; class teacher can't post feedback (403) |
 | `tests/integration/reminders.test.ts` | Blocked → check-in only; two silent → one merged message; a second run fires nothing |
+| `tests/telegram-sdk.test.ts` | Safe Telegram SDK layer: throwing or missing methods never throw, version checks, confirm fallback, MainButton controller never returns the chainable SDK object (the reply-page crash), falls back on failure, clamps texts; `client.error` payload and endpoint |
 | `tests/answer-risk.test.ts` | "Who is at risk?" in chat: a mocked model that adds a name, mentions another student or invents a number → template + `model.failure`; no facts → "Nobody looks at risk this week ✓"; template ≤ 6 lines |
 | `tests/class-school.test.ts` | Class load and heavy days, struggling in 2+ subjects, school health numbers and worst class, roster paste, at-risk signals and window, access for the student page and setup |
 | `tests/integration/school.test.ts` | School health never returns submission, doubt or feedback text at any drill level; another school's coordinator gets 403 on every screen (logged); Load/Struggling class teacher only; student page scope per role; create class from roster; invite grants and 7-day expiry; set class teacher replaces the previous one; can't remove own coordinator role |
