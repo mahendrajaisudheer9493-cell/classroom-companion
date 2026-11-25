@@ -126,4 +126,24 @@ describe.skipIf(!process.env.DATABASE_URL)("teacher chat: ask, don't reject (int
     const draft = await prisma.assignment.findFirstOrThrow({ where: { schoolId: ids.school, status: "DRAFT" } });
     expect(draft.instructions).toContain("along with diagrams");
   });
+
+  it("the model guesses subject 'Maths' but the text names no subject → still asks which subject", async () => {
+    parse.mockResolvedValue({ ok: true, data: { ...parsed, subject: "Maths" } });
+    const q = lastQuestion(await send(text(MESSAGE)));
+    expect(q.text).toBe("Which subject?");
+    expect(q.buttons.map((b) => b.text)).toEqual(["Maths", "Science"]);
+  });
+
+  it('"maths 4.5 …" names the subject → Maths without asking, straight to the class question', async () => {
+    parse.mockResolvedValue({ ok: true, data: { ...parsed, subject: "Maths" } });
+    const q = lastQuestion(await send(text(`maths ${MESSAGE.replace("do assignment ", "")}`)));
+    expect(q.text).toBe("Which class?");
+    expect(q.buttons.map((b) => b.text)).toEqual(["9P", "9Q", "Both"]);
+  });
+
+  it("the model guesses a class the text doesn't name → asks which class", async () => {
+    parse.mockResolvedValue({ ok: true, data: { ...parsed, subject: "Maths", classNames: ["9Q"] } });
+    const q = lastQuestion(await send(text("maths workbook q1-8 by tomorrow")));
+    expect(q.text).toBe("Which class?");
+  });
 });

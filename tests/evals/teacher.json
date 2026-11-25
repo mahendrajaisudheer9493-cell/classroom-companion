@@ -55,7 +55,11 @@
     { "message": "who should I talk to tomorrow", "expect": { "intent": "question" } },
     {
       "message": "do assignment 4.5 1-8 workbook questions by tomorrow along with diagrams",
-      "expect": { "intent": "create", "classNames": [], "dueDate": "2026-11-18", "timeOfDay": null, "explicitTime": null, "instructionsInclude": "diagram" }
+      "expect": { "intent": "create", "classNames": [], "subject": null, "dueDate": "2026-11-18", "timeOfDay": null, "explicitTime": null, "instructionsInclude": "diagram" }
+    },
+    {
+      "message": "maths assignment 4.5 1-8 workbook questions by tomorrow along with diagrams",
+      "expect": { "intent": "create", "classNames": [], "subject": "Maths", "dueDate": "2026-11-18", "instructionsInclude": "diagram" }
     },
     {
       "message": "worksheet 7 all questions for 8A due friday 4pm",

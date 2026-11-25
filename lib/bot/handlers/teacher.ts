@@ -10,6 +10,7 @@ import {
   resolveChangedDue,
   resolveDue,
   resolveTarget,
+  verifyTargetHints,
   type DueParts,
 } from "@/lib/domain/assignment-draft";
 import {
@@ -108,10 +109,12 @@ export async function handleTeacherText(ctx: BotContext, text: string) {
     return ctx.reply('You can ask me "who is at risk this week?". To set work you need a subject teacher role; ask your coordinator.');
   }
   if (p.intent === "create") {
+    // Never trust a guessed subject or class: keep them only if the teacher actually wrote them.
+    const hints = verifyTargetHints(text, { subject: p.subject, classNames: p.classNames });
     return advanceDraft(ctx, {
       sourceText: text,
-      subject: p.subject,
-      classNames: p.classNames,
+      subject: hints.subject,
+      classNames: hints.classNames,
       classIds: null,
       title: p.title,
       instructions: p.instructions,

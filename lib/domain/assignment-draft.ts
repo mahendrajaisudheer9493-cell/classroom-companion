@@ -175,3 +175,47 @@ export function resolveChangedDue(
   if (dueAt <= now) return { kind: "past", dueAt };
   return { kind: "ok", dueAt };
 }
+
+// ───────────────────── Never trust a guessed subject or class ─────────────────────
+
+/** Words a teacher may use for a subject (lowercase). Unknown subjects match their own name. */
+export const SUBJECT_ALIASES: Record<string, string[]> = {
+  maths: ["maths", "math", "mathematics"],
+  mathematics: ["maths", "math", "mathematics"],
+  science: ["science", "sci"],
+  english: ["english", "eng"],
+  hindi: ["hindi"],
+  "social studies": ["social studies", "social science", "social", "sst"],
+  computer: ["computer", "computers", "computer science", "cs", "ict"],
+  physics: ["physics", "phy"],
+  chemistry: ["chemistry", "chem"],
+  biology: ["biology", "bio"],
+};
+
+const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/** True if the message names this subject (or a common alias) as a whole word. */
+export function mentionsSubject(text: string, subject: string): boolean {
+  const key = subject.trim().toLowerCase();
+  const words = SUBJECT_ALIASES[key] ?? [key];
+  return words.some((w) => new RegExp(`(^|[^a-z])${escapeRe(w).replace(/ /g, "\\s+")}([^a-z]|$)`, "i").test(text));
+}
+
+/** True if the message names this class: "8A", "8 A", "8a", "8-A". */
+export function mentionsClass(text: string, className: string): boolean {
+  const m = className.trim().match(/^(\d+)\s*-?\s*([A-Za-z]+)$/);
+  const pattern = m ? `${m[1]}\\s*-?\\s*${escapeRe(m[2])}` : escapeRe(className.trim());
+  return new RegExp(`(^|[^0-9a-z])${pattern}([^0-9a-z]|$)`, "i").test(text);
+}
+
+/**
+ * The model may only fill subject/class when the teacher wrote them. Keep its subject only if the
+ * subject's name or an alias is in the text, and each class only if it is in the text; anything
+ * else becomes "missing", so code asks instead of guessing (e.g. from "diagrams" or "exercise 4.5").
+ */
+export function verifyTargetHints(text: string, hint: { subject: string | null; classNames: string[] }): { subject: string | null; classNames: string[] } {
+  return {
+    subject: hint.subject && mentionsSubject(text, hint.subject) ? hint.subject : null,
+    classNames: hint.classNames.filter((c) => mentionsClass(text, c)),
+  };
+}
