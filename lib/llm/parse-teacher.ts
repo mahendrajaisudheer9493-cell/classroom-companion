@@ -33,7 +33,11 @@ export const teacherParseSchema = z.object({
     })
     .nullable()
     .describe("change only: the new values; null for fields that don't change."),
-  confidence: z.number().min(0).max(1).describe("How sure you are about intent and fields, 0-1."),
+  confidence: z
+    .number()
+    .min(0)
+    .max(1)
+    .describe("How sure you are about the INTENT only (create/change/cancel/question/other), 0-1. Missing class, subject, date or time must NOT lower it."),
 });
 
 export type TeacherParse = z.infer<typeof teacherParseSchema>;
@@ -61,7 +65,9 @@ Rules:
 - title: short and specific, using the teacher's numbering (e.g. "Exercise 4.2, q1–q8").
 - For change/cancel, pick assignmentId only from the recent assignments list; if none clearly matches, use null. For a change of date only, leave changes.timeOfDay and changes.explicitTime null unless a time is stated.
 - Map subject words to the teacher's subjects (maths/math → Maths). Class names like "8 a" → "8A".
-- confidence: below 0.5 if you are guessing the intent.`;
+- instructions: keep every requirement the teacher wrote, including extra words like "along with diagrams" or "in the workbook". Remove only the due date/time words.
+- confidence is about the INTENT only. A message that clearly sets homework is "create" with high confidence (0.9+) even when the class, subject, date or time is missing: leave those fields empty/null and the app will ask. Never lower confidence because details are missing. Use below 0.5 only when you are guessing the intent itself.
+  Example: "do assignment 4.5 1-8 workbook questions by tomorrow along with diagrams" → intent create, confidence 0.95, classNames [], subject null (unless the teacher has one subject), title "Assignment 4.5, q1–8", instructions "Workbook questions 1–8 of assignment 4.5, along with diagrams", dueDate = tomorrow, timeOfDay null, explicitTime null.`;
 
 function contextBlock(ctx: TeacherContext): string {
   const today = ctx.now.startOf("day");

@@ -52,6 +52,16 @@
     },
     { "message": "who is at risk this week?", "expect": { "intent": "question" } },
     { "message": "which students need help in 8A?", "expect": { "intent": "question" } },
-    { "message": "who should I talk to tomorrow", "expect": { "intent": "question" } }
+    { "message": "who should I talk to tomorrow", "expect": { "intent": "question" } },
+    {
+      "message": "do assignment 4.5 1-8 workbook questions by tomorrow along with diagrams",
+      "expect": { "intent": "create", "classNames": [], "dueDate": "2026-11-18", "timeOfDay": null, "explicitTime": null, "instructionsInclude": "diagram" }
+    },
+    {
+      "message": "worksheet 7 all questions for 8A due friday 4pm",
+      "expect": { "intent": "create", "classNames": ["8A"], "subject": null, "dueDate": "2026-11-20", "explicitTime": "16:00" }
+    },
+    { "message": "ex 6.2 q1-10 due monday morning", "expect": { "intent": "create", "classNames": [], "dueDate": "2026-11-23", "timeOfDay": "morning" } },
+    { "message": "8B maths revise ch 5 tomorrow", "expect": { "intent": "create", "classNames": ["8B"], "dueDate": "2026-11-18", "timeOfDay": null, "explicitTime": null } }
   ]
 }

@@ -37,13 +37,24 @@ export async function callTool<T>(opts: {
   logContext?: LogContext;
 }): Promise<ToolCallResult<T>> {
   const env = getEnv();
+  const started = Date.now();
   const fail = async (reason: string, detail?: unknown): Promise<ToolCallResult<T>> => {
     await logEvent(
       "model.failure",
       { purpose: opts.purpose, reason, model: env.ANTHROPIC_MODEL, ...(detail ? { detail } : {}) },
       opts.logContext,
     );
+    await logCall({ task: opts.purpose, outcome: "failure", ms: Date.now() - started, reason }, opts.logContext);
     return { ok: false, reason };
+  };
+  const succeed = async (data: T): Promise<ToolCallResult<T>> => {
+    // intent/confidence only when the task has them (parsing); never the message text or names.
+    const d = data as { intent?: unknown; confidence?: unknown };
+    const intent = typeof d.intent === "string" ? d.intent : undefined;
+    const confidence = typeof d.confidence === "number" ? d.confidence : undefined;
+    const outcome = confidence !== undefined && confidence < env.LLM_CONFIDENCE_THRESHOLD ? "low_confidence" : "ok";
+    await logCall({ task: opts.purpose, outcome, ms: Date.now() - started, intent, confidence }, opts.logContext);
+    return { ok: true, data };
   };
 
   // One retry, and only for network errors (not timeouts: the user is waiting).
@@ -73,7 +84,7 @@ export async function callTool<T>(opts: {
 
       const parsed = opts.zodSchema.safeParse(block.input);
       if (!parsed.success) return fail("invalid_output", { issues: parsed.error.issues.slice(0, 5) });
-      return { ok: true, data: parsed.data };
+      return succeed(parsed.data);
     } catch (err) {
       if (err instanceof Anthropic.APIConnectionTimeoutError) return fail("timeout");
       if (err instanceof Anthropic.APIConnectionError) {
@@ -86,6 +97,14 @@ export async function callTool<T>(opts: {
     }
   }
   return fail("network_error");
+}
+
+/** `llm.call`: one line per model call (task, outcome, ms, intent, confidence). No message text, no names. */
+function logCall(
+  data: { task: string; outcome: "ok" | "low_confidence" | "failure"; ms: number; intent?: string; confidence?: number; reason?: string },
+  context?: LogContext,
+) {
+  return logEvent("llm.call", data, context);
 }
 
 /** Untrusted text goes inside tags; the closing tag is neutralised so it can't break out. */

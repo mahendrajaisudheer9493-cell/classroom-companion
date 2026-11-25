@@ -51,6 +51,7 @@ type WhichQuestion = { intent: "change" | "cancel"; changes: DueParts & { instru
 const ASK_BUTTONS = "draft.ask";
 const ASK_TEXT = "draft.ask_text";
 const COULD_NOT_READ = "I couldn't read that as an assignment. Try again, or create it in the app.";
+const MODEL_TROUBLE = "I'm having trouble right now. Try again, or create it in the app.";
 
 const createInAppKeyboard = () => openAppKeyboard("Create in app", "/app/assignments/new");
 
@@ -93,7 +94,11 @@ export async function handleTeacherText(ctx: BotContext, text: string) {
     { schoolId: user.memberships[0]?.schoolId, actorUserId: user.id },
   );
 
-  if (!parsed.ok || parsed.data.intent === "other" || parsed.data.confidence < getEnv().LLM_CONFIDENCE_THRESHOLD) {
+  // The model failed (timeout, error, invalid output): say so, it's not the teacher's wording.
+  if (!parsed.ok) return ctx.reply(MODEL_TROUBLE, { reply_markup: createInAppKeyboard() });
+  // Really not an assignment (or the model can't tell what is meant). Missing class, subject, date
+  // or time never lands here: confidence is about the intent only, and code asks for the details.
+  if (parsed.data.intent === "other" || parsed.data.confidence < getEnv().LLM_CONFIDENCE_THRESHOLD) {
     return ctx.reply(COULD_NOT_READ, { reply_markup: createInAppKeyboard() });
   }
   const p = parsed.data;

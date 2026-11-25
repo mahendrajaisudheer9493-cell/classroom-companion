@@ -35,6 +35,9 @@ type TeacherExpect = {
   explicitTime?: string | null;
   notes?: boolean;
   assignmentId?: string;
+  subject?: string | null;
+  /** words that must survive into the instructions, e.g. "diagram" */
+  instructionsInclude?: string;
 };
 
 async function runTeacher() {
@@ -65,6 +68,14 @@ async function runTeacher() {
       if (e.explicitTime !== undefined && clock !== e.explicitTime) misses.push(`time=${clock}`);
       if (e.notes !== undefined && Boolean(got.notes) !== e.notes) misses.push(`notes=${got.notes ? "set" : "none"}`);
       if (e.assignmentId !== undefined && got.assignmentId !== e.assignmentId) misses.push(`assignmentId=${got.assignmentId}`);
+      if (e.subject !== undefined && got.subject !== e.subject) misses.push(`subject=${got.subject}`);
+      if (e.instructionsInclude && !`${got.title} ${got.instructions}`.toLowerCase().includes(e.instructionsInclude.toLowerCase())) {
+        misses.push(`instructions lost "${e.instructionsInclude}"`);
+      }
+      // Below the threshold the bot would answer "I couldn't read that", so it counts as a fail.
+      if (got.intent !== "other" && got.intent === e.intent && got.confidence < getEnv().LLM_CONFIDENCE_THRESHOLD) {
+        misses.push(`conf ${got.confidence} < ${getEnv().LLM_CONFIDENCE_THRESHOLD} → rejected`);
+      }
     }
     rows.push({
       pass: misses.length === 0,
